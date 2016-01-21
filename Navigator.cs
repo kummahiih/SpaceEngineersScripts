@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage;
 
-namespace MinerScript
+namespace SpaceEngineersScripts
 {
     class Navigator : ScriptBase
     {

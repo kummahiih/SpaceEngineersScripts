@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MinerScript
+namespace SpaceEngineersScripts
 {
     public abstract class ScriptBase
     {
