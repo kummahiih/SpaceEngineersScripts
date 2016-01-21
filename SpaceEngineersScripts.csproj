@@ -66,9 +66,9 @@
   <ItemGroup>
     <Compile Include="base\example.cs" />
     <Compile Include="miner.cs" />
-    <Compile Include="base\Navigator.cs" />
+    <Compile Include="Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ScriptBase.cs" />
+    <Compile Include="base\ScriptBase.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
