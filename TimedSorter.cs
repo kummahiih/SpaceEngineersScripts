@@ -20,14 +20,12 @@ namespace MinerScript
             const string NORMAL_DRAIN_TIMER_ARGUMENT = "to normal drain";
 
             Action <IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, Action<IMyBlockGroup>>
-                ForAllIMyBlockGroups = (s, c, a) => {
-                        foreach (var x in s) { if (c(x)) a(x); }
-                    };
+                ForAllIMyBlockGroups = (s, c, a) => { foreach (var x in s) { if (c(x)) a(x); }};
 
             Action<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, Action<IMyTerminalBlock>>
-                ForAllIMyTerminalBlock = (s, c, a) => {
-                    foreach (var x in s) { if (c(x)) a(x); }
-                };
+                ForAllIMyTerminalBlock = (s, c, a) => {foreach (var x in s) { if (c(x)) a(x); }};
+
+            Func<IMyTerminalBlock, bool> IsSorter = x => typeof(IMyConveyorSorter).IsInstanceOfType(x);
 
             Func<string, List<IMyTerminalBlock>> GetBlocks = (group) =>
             {
@@ -43,11 +41,12 @@ namespace MinerScript
                     );
                     return blocks;
             };
-            Action<string,Type, string> ApplyCommand = (group, type, command) =>
+
+            Action<string,Func<IMyTerminalBlock, bool>, string> ApplyCommand = (group, check, command) =>
             {
                 ForAllIMyTerminalBlock(
                     GetBlocks(group),
-                    x => type.IsInstanceOfType(x),
+                    check,
                     block => block.GetActionWithName(command).Apply(block)
                     );
             };
@@ -61,14 +60,14 @@ namespace MinerScript
 
             Action DrainToContainers = () =>
             {
-                ApplyCommand(SORTERS_TO_CONT,typeof(IMyConveyorSorter), "DrainAll" );
-                ApplyCommand(SORTERS_FROM_CONT, typeof(IMyConveyorSorter), "OnOff_Off");               
+                ApplyCommand(SORTERS_TO_CONT, IsSorter, "DrainAll" );
+                ApplyCommand(SORTERS_FROM_CONT, IsSorter, "OnOff_Off");               
             };
 
             Action NormalizeDrain = () =>
             {
-                ApplyCommand(SORTERS_TO_CONT, typeof(IMyConveyorSorter), "DrainAll");
-                ApplyCommand(SORTERS_FROM_CONT, typeof(IMyConveyorSorter), "OnOff_On");
+                ApplyCommand(SORTERS_TO_CONT, IsSorter, "DrainAll");
+                ApplyCommand(SORTERS_FROM_CONT, IsSorter, "OnOff_On");
             };
 
             switch(argument)
