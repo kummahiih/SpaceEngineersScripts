@@ -19,6 +19,21 @@ namespace MinerScript
             const string NORMAL_DRAIN_TIMER_NAME = "normal drain timer";            
             const string NORMAL_DRAIN_TIMER_ARGUMENT = "to normal drain";
 
+            Func<IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, IEnumerable<IMyBlockGroup>>
+                ForAllIMyBlockGroups = (s, c) => 
+                {
+                    var blocks = new List<IMyBlockGroup>();
+                    s.ForEach(x => { if (c(x)) blocks.Add(x); });
+                    return blocks;    
+                };
+            Func<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, IEnumerable<IMyTerminalBlock>>
+                ForAllIMyTerminalBlock = (s, c) =>
+                {
+                    var blocks = new List<IMyTerminalBlock>();
+                    s.ForEach(x => { if (c(x)) blocks.Add(x); });
+                    return blocks;
+                };
+
             Func<string, List<IMyTerminalBlock>> GetBlocks = (group) =>
             {
                 var blocks = new List<IMyTerminalBlock>();
@@ -26,16 +41,14 @@ namespace MinerScript
 
                 GridTerminalSystem.GetBlockGroups(groups);
 
-                groups
-                    .Where(x => x.Name == group)
+                ForAllIMyBlockGroups(groups,x => x.Name == group)
                     .Select(x => x.Blocks)
                     .ForEach(x => blocks.AddRange(x));
                     return blocks;
             };
             Action<string,Type, string> ApplyCommand = (group, type, command) =>
             {
-                GetBlocks(group)
-                    .Where(x => type.IsInstanceOfType(x) )
+                ForAllIMyTerminalBlock(GetBlocks(group),x => type.IsInstanceOfType(x))
                     .ForEach(block => block.GetActionWithName(command).Apply(block));
             };
 
