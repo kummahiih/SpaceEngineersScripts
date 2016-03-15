@@ -19,19 +19,14 @@ namespace MinerScript
             const string NORMAL_DRAIN_TIMER_NAME = "normal drain timer";            
             const string NORMAL_DRAIN_TIMER_ARGUMENT = "to normal drain";
 
-            Func<IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, IEnumerable<IMyBlockGroup>>
-                ForAllIMyBlockGroups = (s, c) => 
-                {
-                    var blocks = new List<IMyBlockGroup>();
-                    s.ForEach(x => { if (c(x)) blocks.Add(x); });
-                    return blocks;    
-                };
-            Func<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, IEnumerable<IMyTerminalBlock>>
-                ForAllIMyTerminalBlock = (s, c) =>
-                {
-                    var blocks = new List<IMyTerminalBlock>();
-                    s.ForEach(x => { if (c(x)) blocks.Add(x); });
-                    return blocks;
+            Action <IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, Action<IMyBlockGroup>>
+                ForAllIMyBlockGroups = (s, c, a) => {
+                        foreach (var x in s) { if (c(x)) a(x); }
+                    };
+
+            Action<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, Action<IMyTerminalBlock>>
+                ForAllIMyTerminalBlock = (s, c, a) => {
+                    foreach (var x in s) { if (c(x)) a(x); }
                 };
 
             Func<string, List<IMyTerminalBlock>> GetBlocks = (group) =>
@@ -41,15 +36,20 @@ namespace MinerScript
 
                 GridTerminalSystem.GetBlockGroups(groups);
 
-                ForAllIMyBlockGroups(groups,x => x.Name == group)
-                    .Select(x => x.Blocks)
-                    .ForEach(x => blocks.AddRange(x));
+                ForAllIMyBlockGroups(
+                    groups,
+                    x => x.Name == group,
+                    x => blocks.AddRange(x.Blocks)
+                    );
                     return blocks;
             };
             Action<string,Type, string> ApplyCommand = (group, type, command) =>
             {
-                ForAllIMyTerminalBlock(GetBlocks(group),x => type.IsInstanceOfType(x))
-                    .ForEach(block => block.GetActionWithName(command).Apply(block));
+                ForAllIMyTerminalBlock(
+                    GetBlocks(group),
+                    x => type.IsInstanceOfType(x),
+                    block => block.GetActionWithName(command).Apply(block)
+                    );
             };
 
             Action<string> StartTimer = timerName =>
