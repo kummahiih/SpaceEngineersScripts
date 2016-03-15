@@ -15,9 +15,10 @@ namespace MinerScript
             const string SORTERS_TO_CONT = "sorters to cont";
             const string SORTERS_FROM_CONT = "sorters from cont";
             const string DRAINING_TIMER_NAME = "draining timer";
-            const string DRAINING_TIMER_ARGUMENT = "to draining";
+            const string DRAINING_TIMER_ARGUMENT = "to drain all";
             const string NORMAL_DRAIN_TIMER_NAME = "normal drain timer";            
             const string NORMAL_DRAIN_TIMER_ARGUMENT = "to normal drain";
+            const string PROCEDURE_NAME = "resource sorting";
 
             Action <IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, Action<IMyBlockGroup>>
                 ForAllIMyBlockGroups = (s, c, a) => { foreach (var x in s) { if (c(x)) a(x); }};
@@ -51,11 +52,11 @@ namespace MinerScript
                     );
             };
 
-            Action<string> StartTimer = timerName =>
+            Action<string,string> AplyForTimer = (timerName, actionName) =>
             {
                 var timer = GridTerminalSystem.GetBlockWithName(timerName) as IMyTimerBlock;
                 if (timer == null) return;
-                timer.GetActionWithName("Start").Apply(timer);
+                timer.GetActionWithName(actionName).Apply(timer);
             };
 
             Action DrainToContainers = () =>
@@ -70,15 +71,24 @@ namespace MinerScript
                 ApplyCommand(SORTERS_FROM_CONT, IsSorter, "OnOff_On");
             };
 
-            switch(argument)
+            if (string.IsNullOrEmpty(argument))
+                argument = Storage;
+
+            Echo(PROCEDURE_NAME + " " + argument);
+
+            switch (argument)
             {
                 case DRAINING_TIMER_ARGUMENT:
+                    AplyForTimer(NORMAL_DRAIN_TIMER_NAME, "Stop");
                     DrainToContainers();
-                    StartTimer(DRAINING_TIMER_NAME);
+                    Storage = NORMAL_DRAIN_TIMER_ARGUMENT;                    
+                    AplyForTimer(DRAINING_TIMER_NAME, "Start");
                     break;
                 case NORMAL_DRAIN_TIMER_ARGUMENT:
+                    AplyForTimer(DRAINING_TIMER_NAME, "Stop");
                     NormalizeDrain();
-                    StartTimer(NORMAL_DRAIN_TIMER_NAME);
+                    Storage = DRAINING_TIMER_ARGUMENT;                    
+                    AplyForTimer(NORMAL_DRAIN_TIMER_NAME, "Start");
                     break;
             }
 

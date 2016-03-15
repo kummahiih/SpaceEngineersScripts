@@ -1,4 +1,5 @@
-﻿using Sandbox.ModAPI.Ingame;
+﻿using Sandbox.ModAPI;
+using Sandbox.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,9 +8,82 @@ using System.Threading.Tasks;
 
 namespace SpaceEngineersScripts
 {
-    public abstract class ScriptBase
+    public abstract class ScriptBase: IMyGridProgram
     {
         protected IMyGridTerminalSystem GridTerminalSystem;
+
+        public Action<string> Echo
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public TimeSpan ElapsedTime
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public bool HasMainMethod
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public IMyProgrammableBlock Me
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public string Storage
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        IMyGridTerminalSystem IMyGridProgram.GridTerminalSystem
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
 
         public abstract void Main(string argument);
     }
