@@ -25,7 +25,7 @@ namespace MinerScript
             Action<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, Action<IMyTerminalBlock>>
                 ForAllIMyTerminalBlock = (s, c, a) => {foreach (var x in s) { if (c(x)) a(x); }};
 
-            Func<IMyTerminalBlock, bool> IsSorter = x => typeof(IMyConveyorSorter).IsInstanceOfType(x);
+            Func<IMyTerminalBlock, bool> IsSorter = x => x as IMyConveyorSorter != null;
 
             Func<string, List<IMyTerminalBlock>> GetBlocks = (group) =>
             {
