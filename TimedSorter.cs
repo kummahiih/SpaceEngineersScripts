@@ -10,7 +10,7 @@ namespace MinerScript
 {
     class TimedSorter : ScriptBase
     {
-        public override void Main(string argument)
+        public override void Main(string eventName)
         {
             const string SORTERS_TO_CONT = "sorters to cont";
             const string SORTERS_FROM_CONT = "sorters from cont";
@@ -71,12 +71,14 @@ namespace MinerScript
                 ApplyCommand(SORTERS_FROM_CONT, IsSorter, "OnOff_On");
             };
 
-            if (string.IsNullOrEmpty(argument))
-                argument = Storage;
+            if (string.IsNullOrEmpty(eventName))
+                eventName = Storage;
+            if (string.IsNullOrEmpty(eventName))
+                eventName = DRAINING_TIMER_ARGUMENT;
 
-            Echo(PROCEDURE_NAME + " " + argument);
+            Echo(PROCEDURE_NAME + " " + eventName);
 
-            switch (argument)
+            switch (eventName)
             {
                 case DRAINING_TIMER_ARGUMENT:
                     AplyForTimer(NORMAL_DRAIN_TIMER_NAME, "Stop");
