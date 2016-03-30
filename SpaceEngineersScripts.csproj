@@ -36,6 +36,13 @@
     <Reference Include="Sandbox.Game">
       <HintPath>D:\Programs\SteamLibrary\SteamApps\common\SpaceEngineers\Bin\Sandbox.Game.dll</HintPath>
     </Reference>
+    <Reference Include="SpaceEngineers.Game">
+      <HintPath>D:\Programs\SteamLibrary\SteamApps\common\SpaceEngineers\Bin\SpaceEngineers.Game.dll</HintPath>
+    </Reference>
+    <Reference Include="SpaceEngineers.ObjectBuilders.XmlSerializers, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Programs\SteamLibrary\SteamApps\common\SpaceEngineers\Bin\SpaceEngineers.ObjectBuilders.XmlSerializers.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -62,6 +69,10 @@
     <Reference Include="VRage.Math">
       <HintPath>D:\Programs\SteamLibrary\SteamApps\common\SpaceEngineers\Bin\VRage.Math.dll</HintPath>
     </Reference>
+    <Reference Include="VRage.Native, Version=0.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Programs\SteamLibrary\SteamApps\common\SpaceEngineers\Bin\VRage.Native.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="base\example.cs" />
@@ -70,6 +81,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="base\ScriptBase.cs" />
     <Compile Include="TimedSorter.cs" />
+    <Compile Include="TimedWelder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
