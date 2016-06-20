@@ -11,64 +11,70 @@ namespace MinerScript
     {
         public class Program : ScriptBase
         {
-            public static void ForEach(IEnumerable<ScriptAction> source, Action<ScriptAction> action) {
-                foreach (var x in source) { if (action != null) action(x); }
-            }
-
             //linq substitutes
-            //public static void ForEach<T>(IEnumerable<T> source, Action<T> action)
-            //{
-            //    foreach (var x in source) { if(action != null)action(x); }
-            //}
+            public static void ForEachA(IEnumerable<ScriptAction> source, Action<ScriptAction> action)
+            { foreach (var x in source) { if (action != null) action(x); }}
+            public static void ForEachIB(IEnumerable<Sandbox.ModAPI.Ingame.IMyTerminalBlock> source, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> action)
+            { foreach (var x in source) { if (action != null) action(x); } }            
+            public static void ForEachB(IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
+            { foreach (var x in source) { if (action != null) action(x); } }
+            public static void ForEachG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Action<Sandbox.ModAPI.Ingame.IMyBlockGroup> action)
+            { foreach (var x in source) { if (action != null) action(x); } }
+
+            public static IEnumerable<ScriptAction> WhereA(IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
+            {
+                var ret = new List<ScriptAction>();
+                ForEachA(source, x => { if (condition == null || condition(x)) ret.Add(x); });
+                return ret;
+            }
+            public static IEnumerable<IMyTerminalBlock> WhereB(IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
+            {
+                var ret = new List<IMyTerminalBlock>();
+                ForEachB(source, x => { if (condition == null || condition(x)) ret.Add(x); });
+                return ret;
+            }
+            public static IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> WhereG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition)
+            {
+                var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
+                ForEachG(source, x => { if (condition == null || condition(x)) ret.Add(x); });
+                return ret;
+            }
 
             //public static IEnumerable<V> Select<T, V>(IEnumerable<T> source, Func<T, V> select)
             //{
             //    var ret = new List<V>();
-            //    ForEach(source, x => ret.Add(select(x)));
-            //    return ret;
+            //    ForEach(source, x => ret.Add(select(x))); return ret;
             //}
 
-            public static IEnumerable<ScriptAction> Where(IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
+            public static void ApplyCommand(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string command)
             {
-                var ret = new List<ScriptAction>();
-                ForEach(source, x => { if (condition == null || condition(x)) ret.Add(x); });
-                return ret;
+                block.GetActionWithName(command).Apply(block);
             }
 
-            //public static IEnumerable<T> Where<T>(IEnumerable<T> source, Func<T, bool> condition)
-            //{
-            //    var ret = new List<T>();
-            //    ForEach(source, x => { if (condition == null || condition(x)) ret.Add(x); });
-            //    return ret;
-            //}
+            public List<IMyTerminalBlock> GetBlocks(string group)
+            {
+                var blocksConv = new List<IMyTerminalBlock>();
+                var blocks= new List<Sandbox.ModAPI.Ingame.IMyTerminalBlock>();
+                var groups = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
+                GridTerminalSystem.GetBlockGroups(groups);
+                ForEachG(WhereG(groups, x => x.Name == group), x => blocks.AddRange(x.Blocks));
+                ForEachIB(blocks, b => blocksConv.Add((IMyTerminalBlock)b));
+                return blocksConv;
+            }
 
-            //public static void ApplyCommand(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string command)
-            //{
-            //    block.GetActionWithName(command).Apply(block);
-            //}
-
-            //public List<Sandbox.ModAPI.Ingame.IMyTerminalBlock> GetBlocks(string group)
-            //{
-            //    var blocks = new List<Sandbox.ModAPI.Ingame.IMyTerminalBlock>();
-            //    var groups = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
-            //    GridTerminalSystem.GetBlockGroups(groups);
-            //    ForEach(Where(groups, x => x.Name == group), x => blocks.AddRange(x.Blocks));
-            //    return blocks;
-            //}
-
-            //public void ForBlocksInGoupWhereApply(
-            //    string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
-            //{
-            //    ForEach(Where(GetBlocks(group: group), x => x is Sandbox.ModAPI.Ingame.IMyConveyorSorter), x => ApplyCommand(x, command: command));
-            //}
+            public void ForBlocksInGoupWhereApply(
+                string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
+            {
+                ForEachB(WhereB(GetBlocks(group: group), x => x is Sandbox.ModAPI.Ingame.IMyConveyorSorter), x => ApplyCommand(x, command: command));
+            }
 
 
-            //public void ForBlockWhereApply(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
-            //{
-            //    var block = GridTerminalSystem.GetBlockWithName(name);
-            //    if (block != null && (condition == null || condition(block)) && command != null)
-            //        command(block);
-            //}
+            public void ForBlockWhereApply(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
+            {
+                var block = GridTerminalSystem.GetBlockWithName(name);
+                if (block != null && (condition == null || condition(block)) && command != null)
+                    command(block);
+            }
 
             //public void ForBlockWhereApply(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
             //{
@@ -125,7 +131,7 @@ namespace MinerScript
             {
                 Echo(" on action: " + scriptAction.ToString() + (string.IsNullOrEmpty(param) ? " with param " + param : ""));
                 scriptAction.Execute(param);
-                ForEach(Where(scriptAction.EntryActions, x => string.IsNullOrEmpty(param) || 
+                ForEachA(WhereA(scriptAction.EntryActions, x => string.IsNullOrEmpty(param) || 
                 x.Name == param), x => Execute(x));
             }
 
@@ -193,7 +199,7 @@ namespace MinerScript
             public void Main(string eventName)
             {
                 var main = Initialize();
-                Echo("Foo2");
+                Echo("Foo3");
                 //Execute(main, eventName);
             }
 
