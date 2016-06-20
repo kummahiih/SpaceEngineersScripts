@@ -53,21 +53,24 @@ namespace MinerScript
                 return blocksConv;
             }
 
-            public void ForBlocksInGoupWhereApply(
-                string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
-            {
+            public void ForBlocksInGoupWhereApply(string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command){
                 ForEachB(WhereB(GetBlocks(group: group), x => x is Sandbox.ModAPI.Ingame.IMyConveyorSorter), x => ApplyCommand(x, command: command));
             }
 
 
-            public void ForBlockWhereApply(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
-            {
+            public void ForBlockWhereApplyA(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command){
                 var block = GridTerminalSystem.GetBlockWithName(name);
                 if (block != null && (condition == null || condition(block)) && command != null)
                     command(block);
             }
 
-            public bool IsSorter(IMyTerminalBlock x)
+            public void ForBlockWhereApplyS(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
+            {
+                ForBlockWhereApplyA(name, condition, b => ApplyCommand(b, command));
+            }
+
+
+            public bool IsSorter(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
             {
                 return x is Sandbox.ModAPI.Ingame.IMyConveyorSorter;
             }
@@ -77,12 +80,12 @@ namespace MinerScript
             //    return x is Sandbox.ModAPI.Ingame.IMyTimerBlock;
             //}
 
-            public bool IsIMyTextPanel(IMyTerminalBlock x)
+            public bool IsIMyTextPanel(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
             {
                 return x is IMyTextPanel;
             }
 
-            public bool NoCondition(IMyTerminalBlock x)
+            public bool NoCondition(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
             {
                 return true;
             }
@@ -123,48 +126,48 @@ namespace MinerScript
             }
 
             //TODO json
-            //public string GetRecursiceDescription(ScriptAction scriptAction)
-            //{
-            //    var ret = scriptAction.Name;
-            //    ForEach(scriptAction.EntryActions, action => { ret += "\n|" + action.ToString().Replace("\n", "\n|"); });
-            //    return ret;
-            //}
+            public string GetRecursiceDescription(ScriptAction scriptAction)
+            {
+                var ret = scriptAction.Name;
+                ForEachA(scriptAction.EntryActions, action => { ret += "\n|" + action.ToString().Replace("\n", "\n|"); });
+                return ret;
+            }
 
 
-            //public ScriptAction GetGroupCommand(string group,
-            //    Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition,
-            //    string command)
-            //{
-            //    return new ScriptAction(
-            //        name: "G:" + group + ", C:" + command,
-            //        action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, command: command));
-            //}
+            public ScriptAction GetGroupCommand(string group,
+                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition,
+                string command)
+            {
+                return new ScriptAction(
+                    name: "G:" + group + ", C:" + command,
+                    action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, command: command));
+            }
 
-            //public ScriptAction GetBlockCommand(string name,
-            //    Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
-            //{
-            //    return new ScriptAction(
-            //        name: "N:" + name + ", C:" + command,
-            //        action: param => ForBlockWhereApply(name: name, condition: condition, command: command));
-            //}
+            public ScriptAction GetBlockCommand(string name,
+                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
+            {
+                return new ScriptAction(
+                    name: "N:" + name + ", C:" + command,
+                    action: param => ForBlockWhereApplyS(name: name, condition: condition, command: command));
+            }
 
-            //const string LCD_OUT_NAME = "outPanel";
+            const string LCD_OUT_NAME = "outPanel";
 
-            //public ScriptAction GetLcdOutAction(
-            //        string name, Func<string> data)
-            //{
-            //    return new ScriptAction(
-            //        name: "N:" + LCD_OUT_NAME + ", LcdOut:" + name,
-            //        action: param =>
-            //        {
-            //            ForBlockWhereApply(LCD_OUT_NAME, IsIMyTextPanel,
-            //                block =>
-            //                {
-            //                    (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(name);
-            //                    (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(data());
-            //                });
-            //        });
-            //}
+            public ScriptAction GetLcdOutAction(
+                    string name, Func<string> data)
+            {
+                return new ScriptAction(
+                    name: "N:" + LCD_OUT_NAME + ", LcdOut:" + name,
+                    action: param =>
+                    {
+                        ForBlockWhereApplyA(LCD_OUT_NAME, x => IsIMyTextPanel(x),
+                            block =>
+                            {
+                                (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(name);
+                                (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(data());
+                            });
+                    });
+            }
 
             public ScriptAction Initialize()
             {
@@ -172,10 +175,10 @@ namespace MinerScript
 
                 var helloAction = new ScriptAction(name: "helloTerminal", action: param => { Echo("Hello Terminal"); });
                 main.Add(helloAction);
-                //var helloLcd = GetLcdOutAction(name: "helloLcd", data: () => "Hello Lcd");
-                //main.Add(helloLcd);
-                //var showActions = GetLcdOutAction(name: "listActions", data: () => { return GetRecursiceDescription(main); });
-                //main.Add(showActions);
+                var helloLcd = GetLcdOutAction(name: "helloLcd", data: () => "Hello Lcd");
+                main.Add(helloLcd);
+                var showActions = GetLcdOutAction(name: "listActions", data: () => { return GetRecursiceDescription(main); });
+                main.Add(showActions);
 
                 return main;
             }
@@ -186,8 +189,7 @@ namespace MinerScript
             public void Main(string eventName)
             {
                 var main = Initialize();
-                Echo("Foo4");
-                //Execute(main, eventName);
+                Execute(main, eventName);
             }
 
 
