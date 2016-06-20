@@ -1,11 +1,11 @@
-﻿using Sandbox.ModAPI.Ingame;
-using SpaceEngineers.Game.ModAPI.Ingame;
-using SpaceEngineersScripts;
+﻿using SpaceEngineersScripts;
 using System;
 using System.Collections.Generic;
+using Sandbox.ModAPI;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 
 namespace MinerScript
 {
@@ -21,18 +21,18 @@ namespace MinerScript
             const string NORMAL_DRAIN_TIMER_ARGUMENT = "to normal drain";
             const string PROCEDURE_NAME = "resource sorting";
 
-            Action <IEnumerable<IMyBlockGroup>, Func<IMyBlockGroup, bool>, Action<IMyBlockGroup>>
+            Action <IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup>, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool>, Action<IMyBlockGroup>>
                 ForAllIMyBlockGroups = (s, c, a) => { foreach (var x in s) { if (c(x)) a(x); }};
 
             Action<IEnumerable<IMyTerminalBlock>, Func<IMyTerminalBlock, bool>, Action<IMyTerminalBlock>>
                 ForAllIMyTerminalBlock = (s, c, a) => {foreach (var x in s) { if (c(x)) a(x); }};
 
-            Func<IMyTerminalBlock, bool> IsSorter = x => x as IMyConveyorSorter != null;
+            Func<IMyTerminalBlock, bool> IsSorter = x => x as Sandbox.ModAPI.Ingame.IMyConveyorSorter != null;
 
             Func<string, List<IMyTerminalBlock>> GetBlocks = (group) =>
             {
                 var blocks = new List<IMyTerminalBlock>();
-                var groups = new List<IMyBlockGroup>();
+                var groups = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
 
                 GridTerminalSystem.GetBlockGroups(groups);
 
@@ -55,7 +55,7 @@ namespace MinerScript
 
             Action<string,string> AplyForTimer = (timerName, actionName) =>
             {
-                var timer = GridTerminalSystem.GetBlockWithName(timerName) as IMyTimerBlock;
+                var timer = GridTerminalSystem.GetBlockWithName(timerName) as Sandbox.ModAPI.IMyTimerBlock;
                 if (timer == null) return;
                 timer.GetActionWithName(actionName).Apply(timer);
             };

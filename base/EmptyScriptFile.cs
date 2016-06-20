@@ -3,7 +3,7 @@ namespace SpaceEngineersScripts
 class EmptyProgram20160620
     {
 
-public Program() {
+public void Program() {
 
     // The constructor, called only once every session and
     // always before any other method is called. Use it to

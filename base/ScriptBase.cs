@@ -46,7 +46,28 @@ namespace SpaceEngineersScripts
             }
         }
 
+        public bool HasSaveMethod
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         public IMyProgrammableBlock Me
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public IMyGridProgramRuntimeInfo Runtime
         {
             get
             {
@@ -85,6 +106,10 @@ namespace SpaceEngineersScripts
             }
         }
 
-        public abstract void Main(string argument);
+        //public virtual void Program() { }
+
+        //public abstract void Main(string argument);
+
+        //public virtual void Save() {  }
     }
 }
