@@ -11,7 +11,7 @@ namespace MinerScript
     {
         public class Program : ScriptBase
         {
-            //linq substitutes
+            //linq substitutes without templates nor static extensions ...
             public static void ForEachA(IEnumerable<ScriptAction> source, Action<ScriptAction> action)
             { foreach (var x in source) { if (action != null) action(x); }}
             public static void ForEachIB(IEnumerable<Sandbox.ModAPI.Ingame.IMyTerminalBlock> source, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> action)
@@ -21,30 +21,21 @@ namespace MinerScript
             public static void ForEachG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Action<Sandbox.ModAPI.Ingame.IMyBlockGroup> action)
             { foreach (var x in source) { if (action != null) action(x); } }
 
-            public static IEnumerable<ScriptAction> WhereA(IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
-            {
+            public static IEnumerable<ScriptAction> WhereA(IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition) {
                 var ret = new List<ScriptAction>();
                 ForEachA(source, x => { if (condition == null || condition(x)) ret.Add(x); });
                 return ret;
             }
-            public static IEnumerable<IMyTerminalBlock> WhereB(IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
-            {
+            public static IEnumerable<IMyTerminalBlock> WhereB(IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition) {
                 var ret = new List<IMyTerminalBlock>();
                 ForEachB(source, x => { if (condition == null || condition(x)) ret.Add(x); });
                 return ret;
             }
-            public static IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> WhereG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition)
-            {
+            public static IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> WhereG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition) {
                 var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
                 ForEachG(source, x => { if (condition == null || condition(x)) ret.Add(x); });
                 return ret;
             }
-
-            //public static IEnumerable<V> Select<T, V>(IEnumerable<T> source, Func<T, V> select)
-            //{
-            //    var ret = new List<V>();
-            //    ForEach(source, x => ret.Add(select(x))); return ret;
-            //}
 
             public static void ApplyCommand(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string command)
             {
@@ -76,29 +67,25 @@ namespace MinerScript
                     command(block);
             }
 
-            //public void ForBlockWhereApply(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
-            //{
-            //    ForBlockWhereApply(name, condition, block => ApplyCommand(block, command));
-            //}
+            public bool IsSorter(IMyTerminalBlock x)
+            {
+                return x is Sandbox.ModAPI.Ingame.IMyConveyorSorter;
+            }
 
-            //public bool IsSorter(IMyTerminalBlock x)
-            //{
-            //    return x is IMyConveyorSorter;
-            //}
             //public bool IsTimer(IMyTerminalBlock x)
             //{
-            //    return x is IMyTimerBlock;
+            //    return x is Sandbox.ModAPI.Ingame.IMyTimerBlock;
             //}
 
-            //public bool IsIMyTextPanel(IMyTerminalBlock x)
-            //{
-            //    return x is IMyTextPanel;
-            //}
+            public bool IsIMyTextPanel(IMyTerminalBlock x)
+            {
+                return x is IMyTextPanel;
+            }
 
-            //public bool NoCondition(IMyTerminalBlock x)
-            //{
-            //    return true;
-            //}
+            public bool NoCondition(IMyTerminalBlock x)
+            {
+                return true;
+            }
 
 
             //action naming, the tree structure of actions and action execution 
@@ -199,7 +186,7 @@ namespace MinerScript
             public void Main(string eventName)
             {
                 var main = Initialize();
-                Echo("Foo3");
+                Echo("Foo4");
                 //Execute(main, eventName);
             }
 
