@@ -127,10 +127,11 @@ namespace MinerScript
                 x.Name == param), x => Execute(x));
             }
 
+            //no serializers of any kind available
             public string GetRecursiceDescription(ScriptAction scriptAction)
             {
-                var ret = scriptAction.Name;
-                ret += "childs:{\n";
+                var ret = scriptAction.ToString();
+                ret += ", childs:{";
                 ForEachA(scriptAction.EntryActions, action => { ret += "{" + action.ToString() + "},"; });
                 ret += "}\n";
 
