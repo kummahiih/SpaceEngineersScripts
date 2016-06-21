@@ -11,7 +11,10 @@ namespace MinerScript
     {
         public class Program : ScriptBase
         {
-            //linq substitutes without templates nor static extensions ...
+            #region copymeto programmable block
+            #region linq substitutes
+            //linq substitutes without templates nor static extensions
+            //static extensions and templates are not supportet it seems
             public static void ForEachA(IEnumerable<ScriptAction> source, Action<ScriptAction> action)
             { foreach (var x in source) { if (action != null) action(x); }}
             public static void ForEachIB(IEnumerable<Sandbox.ModAPI.Ingame.IMyTerminalBlock> source, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> action)
@@ -36,7 +39,8 @@ namespace MinerScript
                 ForEachG(source, x => { if (condition == null || condition(x)) ret.Add(x); });
                 return ret;
             }
-
+            #endregion
+            #region basic operations
             public static void ApplyTerminalAction(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string actionName)
             {
                 block.GetActionWithName(actionName).Apply(block);
@@ -69,30 +73,26 @@ namespace MinerScript
             {
                 ForBlockWhereApplyA(name, condition, b => ApplyTerminalAction(b, actionName));
             }
-
-
+            #endregion
+            #region basic tests to use with Where
             public bool IsSorter(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
-            {
-                return x is Sandbox.ModAPI.Ingame.IMyConveyorSorter;
-            }
+            { return x is Sandbox.ModAPI.Ingame.IMyConveyorSorter; }
 
-            //public bool IsTimer(IMyTerminalBlock x)
-            //{
-            //    return x is Sandbox.ModAPI.Ingame.IMyTimerBlock;
-            //}
+            //public bool IsTimer(IMyTerminalBlock x)  //where has this gone into?
+            //{ return x is Sandbox.ModAPI.Ingame.IMyTimerBlock; }
 
             public bool IsIMyTextPanel(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
-            {
-                return x is IMyTextPanel;
-            }
+            { return x is IMyTextPanel; }
 
             public bool NoCondition(Sandbox.ModAPI.Ingame.IMyTerminalBlock x)
-            {
-                return true;
-            }
-            
+            { return true; }
+            #endregion
 
-            //action naming, the tree structure of actions and action execution 
+            #region ScriptAction logic
+            /// <summary>
+            /// wraps actions into a tree like stucture. 
+            /// test to inherit 
+            /// </summary>
             public class ScriptAction
             {   
                 public String Name { get; set; }
@@ -137,9 +137,10 @@ namespace MinerScript
 
                 return ret;
             }
+            #endregion
 
-
-
+            #region scriptaction implementations
+            #region generic actions (no block nor group names)
             public class GroupAction : ScriptAction
             {
                 public String GroupName { get; private set; }
@@ -179,7 +180,8 @@ namespace MinerScript
                     action: param => ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
                     blockname:blockName, actionName:actionName);
             }
-
+            #endregion
+            #region implementations with block or group names
             const string LCD_OUT_NAME = "outPanel";
 
             public ScriptAction GetLcdOutAction(
@@ -198,6 +200,7 @@ namespace MinerScript
                     });
 
             }
+            #endregion
 
             public ScriptAction Initialize()
             {
@@ -212,8 +215,9 @@ namespace MinerScript
 
                 return main;
             }
+            #endregion
 
-
+            #region script entry points
 
             public void Main(string eventName)
             {
@@ -221,6 +225,8 @@ namespace MinerScript
                 Execute(main, eventName);
             }
 
+            #endregion
+            #endregion
 
         }
     }
