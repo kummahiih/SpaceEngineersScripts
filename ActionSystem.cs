@@ -37,9 +37,9 @@ namespace MinerScript
                 return ret;
             }
 
-            public static void ApplyCommand(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string command)
+            public static void ApplyTerminalAction(Sandbox.ModAPI.Ingame.IMyTerminalBlock block, string actionName)
             {
-                block.GetActionWithName(command).Apply(block);
+                block.GetActionWithName(actionName).Apply(block);
             }
 
             public List<IMyTerminalBlock> GetBlocks(string group)
@@ -53,8 +53,9 @@ namespace MinerScript
                 return blocksConv;
             }
 
-            public void ForBlocksInGoupWhereApply(string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command){
-                ForEachB(WhereB(GetBlocks(group: group), x => x is Sandbox.ModAPI.Ingame.IMyConveyorSorter), x => ApplyCommand(x, command: command));
+            public void ForBlocksInGoupWhereApply(string group, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string actionName)
+            {
+                ForEachB(WhereB(GetBlocks(group: group), x => x is Sandbox.ModAPI.Ingame.IMyConveyorSorter), x => ApplyTerminalAction(x, actionName: actionName));
             }
 
 
@@ -64,9 +65,9 @@ namespace MinerScript
                     command(block);
             }
 
-            public void ForBlockWhereApplyS(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
+            public void ForBlockWhereApplyS(string name, Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string actionName)
             {
-                ForBlockWhereApplyA(name, condition, b => ApplyCommand(b, command));
+                ForBlockWhereApplyA(name, condition, b => ApplyTerminalAction(b, actionName));
             }
 
 
@@ -89,12 +90,12 @@ namespace MinerScript
             {
                 return true;
             }
-
+            
 
             //action naming, the tree structure of actions and action execution 
             public class ScriptAction
-            {
-                public String Name { get; private set; }
+            {   
+                public String Name { get; set; }
                 protected Action<string> ExecuteAction { get; private set; }
                 public List<ScriptAction> EntryActions { get; private set; }
 
@@ -113,8 +114,9 @@ namespace MinerScript
 
                 public override string ToString()
                 {
-                    return Name;
+                    return "N:" +Name;
                 }
+                
             }
 
             public void Execute(ScriptAction scriptAction, string param = "")
@@ -125,48 +127,75 @@ namespace MinerScript
                 x.Name == param), x => Execute(x));
             }
 
-            //TODO json
             public string GetRecursiceDescription(ScriptAction scriptAction)
             {
                 var ret = scriptAction.Name;
-                ForEachA(scriptAction.EntryActions, action => { ret += "\n|" + action.ToString().Replace("\n", "\n|"); });
+                ret += "childs:{\n";
+                ForEachA(scriptAction.EntryActions, action => { ret += "{" + action.ToString() + "},"; });
+                ret += "}\n";
+
                 return ret;
             }
 
 
-            public ScriptAction GetGroupCommand(string group,
-                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition,
-                string command)
+
+            public class GroupAction : ScriptAction
             {
-                return new ScriptAction(
-                    name: "G:" + group + ", C:" + command,
-                    action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, command: command));
+                public String GroupName { get; private set; }
+                public String ActionName { get; private set; }
+                public GroupAction(Action<string> action, string group, string actionName) : base(action, name: "GroupAction")
+                { GroupName = group; ActionName = actionName; }
+
+                public override string ToString()
+                { return base.ToString() + ", G:" + GroupName + ", A:" + ActionName; }
+
+            }
+
+            public ScriptAction GetGroupAction(string group,
+                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition,
+                string actionName)
+            {
+                return new GroupAction(                   
+                    action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, actionName: actionName),
+                    group:group, actionName: actionName);
+            }
+
+            public class BlockAction : ScriptAction
+            {
+                public String BlockName { get; private set; }
+                public String ActionName { get; private set; }
+                public BlockAction(Action<string> action, string blockname, string actionName) : base(action, name: "BlockAction")
+                { BlockName = blockname; ActionName = actionName; }
+
+                public override string ToString()
+                { return base.ToString() + ", B:" + BlockName + ", A:" + ActionName; }
             }
 
             public ScriptAction GetBlockCommand(string name,
-                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string command)
+                Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string blockName, string actionName)
             {
-                return new ScriptAction(
-                    name: "N:" + name + ", C:" + command,
-                    action: param => ForBlockWhereApplyS(name: name, condition: condition, command: command));
+                return new BlockAction(                    
+                    action: param => ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
+                    blockname:blockName, actionName:actionName);
             }
 
             const string LCD_OUT_NAME = "outPanel";
 
             public ScriptAction GetLcdOutAction(
-                    string name, Func<string> data)
+                    string actionName, Func<string> data)
             {
                 return new ScriptAction(
-                    name: "N:" + LCD_OUT_NAME + ", LcdOut:" + name,
+                    name: actionName,
                     action: param =>
                     {
                         ForBlockWhereApplyA(LCD_OUT_NAME, x => IsIMyTextPanel(x),
                             block =>
                             {
-                                (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(name);
-                                (block as Sandbox.ModAPI.IMyTextPanel).WritePrivateText(data());
+                                (block as Sandbox.ModAPI.IMyTextPanel).WritePublicText(data());
+                                (block as Sandbox.ModAPI.IMyTextPanel).ShowPublicTextOnScreen();
                             });
                     });
+
             }
 
             public ScriptAction Initialize()
@@ -175,14 +204,13 @@ namespace MinerScript
 
                 var helloAction = new ScriptAction(name: "helloTerminal", action: param => { Echo("Hello Terminal"); });
                 main.Add(helloAction);
-                var helloLcd = GetLcdOutAction(name: "helloLcd", data: () => "Hello Lcd");
+                var helloLcd = GetLcdOutAction(actionName: "helloLcd", data: () => "Hello Lcd");
                 main.Add(helloLcd);
-                var showActions = GetLcdOutAction(name: "listActions", data: () => { return GetRecursiceDescription(main); });
+                var showActions = GetLcdOutAction(actionName: "listActions", data: () => { return GetRecursiceDescription(main); });
                 main.Add(showActions);
 
                 return main;
             }
-
 
 
 
