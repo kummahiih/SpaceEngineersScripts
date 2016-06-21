@@ -106,6 +106,9 @@ namespace SpaceEngineersScripts
             }
         }
 
+        public void Main(string argument) { }
+        public void Save() { }
+
         //public virtual void Program() { }
 
         //public abstract void Main(string argument);

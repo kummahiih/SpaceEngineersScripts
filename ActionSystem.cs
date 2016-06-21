@@ -11,6 +11,7 @@ namespace MinerScript
     {
         public class Program : ScriptBase
         {
+
             #region copymeto programmable block
             #region linq substitutes
             //linq substitutes without templates nor static extensions
@@ -91,7 +92,7 @@ namespace MinerScript
             #region ScriptAction logic
             /// <summary>
             /// wraps actions into a tree like stucture. 
-            /// test to inherit 
+            /// actions are implemented as delegates, because some methods can be only called 
             /// </summary>
             public class ScriptAction
             {   
@@ -118,9 +119,10 @@ namespace MinerScript
                 }
                 
             }
-
+            
             public void Execute(ScriptAction scriptAction, string param = "")
             {
+                //echo can not be called from ScriptAction so this has to be a local non static function
                 Echo(" on action: " + scriptAction.ToString() + (string.IsNullOrEmpty(param) ? " with param " + param : ""));
                 scriptAction.Execute(param);
                 ForEachA(WhereA(scriptAction.EntryActions, x => string.IsNullOrEmpty(param) || 
@@ -166,40 +168,44 @@ namespace MinerScript
             {
                 public String BlockName { get; private set; }
                 public String ActionName { get; private set; }
-                public BlockAction(Action<string> action, string blockname, string actionName) : base(action, name: "BlockAction")
-                { BlockName = blockname; ActionName = actionName; }
+                public BlockAction(Action<string> action, string blockName, string actionName) : base(action, name: "BlockAction")
+                { BlockName = blockName; ActionName = actionName; }
 
                 public override string ToString()
                 { return base.ToString() + ", B:" + BlockName + ", A:" + ActionName; }
             }
 
-            public ScriptAction GetBlockCommand(string name,
+            public ScriptAction GetBlockAction(string name,
                 Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition, string blockName, string actionName)
             {
                 return new BlockAction(                    
                     action: param => ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
-                    blockname:blockName, actionName:actionName);
+                    blockName:blockName, actionName:actionName);
             }
-            #endregion
-            #region implementations with block or group names
-            const string LCD_OUT_NAME = "outPanel";
 
-            public ScriptAction GetLcdOutAction(
-                    string actionName, Func<string> data)
+            public ScriptAction GetLcdOutAction(string blockName, string actionName, Func<string> data)
             {
-                return new ScriptAction(
-                    name: actionName,
+                return new BlockAction(blockName:blockName, actionName:actionName,
                     action: param =>
                     {
-                        ForBlockWhereApplyA(LCD_OUT_NAME, x => IsIMyTextPanel(x),
+                        ForBlockWhereApplyA(blockName, x => IsIMyTextPanel(x),
                             block =>
                             {
                                 (block as Sandbox.ModAPI.IMyTextPanel).WritePublicText(data());
                                 (block as Sandbox.ModAPI.IMyTextPanel).ShowPublicTextOnScreen();
                             });
                     });
-
             }
+
+            public ScriptAction GetListActionsToLcdOutAction(string blockName, string actionName, ScriptAction main)
+            {
+                return GetLcdOutAction(blockName: blockName, actionName: actionName, data: () => { return GetRecursiceDescription(main); });
+            }
+
+            #endregion
+            #region implementations with block or group names
+            const string LCD_OUT_NAME = "outPanel";
+            
             #endregion
 
             public ScriptAction Initialize()
@@ -208,16 +214,16 @@ namespace MinerScript
 
                 var helloAction = new ScriptAction(name: "helloTerminal", action: param => { Echo("Hello Terminal"); });
                 main.Add(helloAction);
-                var helloLcd = GetLcdOutAction(actionName: "helloLcd", data: () => "Hello Lcd");
+                var helloLcd = GetLcdOutAction(blockName:LCD_OUT_NAME, actionName: "helloLcd", data: () => "Hello Lcd");
                 main.Add(helloLcd);
-                var showActions = GetLcdOutAction(actionName: "listActions", data: () => { return GetRecursiceDescription(main); });
+                var showActions = GetListActionsToLcdOutAction(blockName: LCD_OUT_NAME, actionName: "listActions", main:main);
                 main.Add(showActions);
 
                 return main;
             }
             #endregion
 
-            #region script entry points
+            #region script entry points. yes it gives a warning
 
             public void Main(string eventName)
             {
