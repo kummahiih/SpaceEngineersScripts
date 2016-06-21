@@ -96,7 +96,7 @@ namespace MinerScript
             /// </summary>
             public class ScriptAction
             {   
-                public String Name { get; set; }
+                public String Name { get; set; } //here name is id because this is used in game that way
                 protected Action<string> ExecuteAction { get; private set; }
                 public List<ScriptAction> EntryActions { get; private set; }
 
@@ -147,7 +147,7 @@ namespace MinerScript
             {
                 public String GroupName { get; private set; }
                 public String ActionName { get; private set; }
-                public GroupAction(Action<string> action, string group, string actionName) : base(action, name: "GroupAction")
+                public GroupAction(Action<string> action, string name, string group, string actionName) : base(action, name: name)
                 { GroupName = group; ActionName = actionName; }
 
                 public override string ToString()
@@ -155,24 +155,24 @@ namespace MinerScript
 
             }
 
-            public ScriptAction GetGroupAction(string group,
+            public ScriptAction GetGroupAction(string name, string group,
                 Func<Sandbox.ModAPI.Ingame.IMyTerminalBlock, bool> condition,
                 string actionName)
             {
                 return new GroupAction(                   
                     action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, actionName: actionName),
-                    group:group, actionName: actionName);
+                    name:name, group:group, actionName: actionName);
             }
 
             public class BlockAction : ScriptAction
             {
                 public String BlockName { get; private set; }
                 public String ActionName { get; private set; }
-                public BlockAction(Action<string> action, string blockName, string actionName) : base(action, name: "BlockAction")
+                public BlockAction(Action<string> action, string name, string blockName, string actionName) : base(action, name: name)
                 { BlockName = blockName; ActionName = actionName; }
 
                 public override string ToString()
-                { return base.ToString() + ", B:" + BlockName + ", A:" + ActionName; }
+                { return base.ToString() + ", B:" + BlockName +", A:" + ActionName; }
             }
 
             public ScriptAction GetBlockAction(string name,
@@ -180,12 +180,13 @@ namespace MinerScript
             {
                 return new BlockAction(                    
                     action: param => ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
-                    blockName:blockName, actionName:actionName);
+                    name:name, blockName:blockName, actionName:actionName);
             }
 
-            public ScriptAction GetLcdOutAction(string blockName, string actionName, Func<string> data)
+            public ScriptAction GetLcdOutputAction(string name, string blockName,  Func<string> data)
             {
-                return new BlockAction(blockName:blockName, actionName:actionName,
+                return new BlockAction(name:name, blockName:blockName,
+                    actionName: "LcdOutputAction",
                     action: param =>
                     {
                         ForBlockWhereApplyA(blockName, x => IsIMyTextPanel(x),
@@ -197,9 +198,9 @@ namespace MinerScript
                     });
             }
 
-            public ScriptAction GetListActionsToLcdOutAction(string blockName, string actionName, ScriptAction main)
+            public ScriptAction GetListActionsToLcdOutAction(string name, string blockName, ScriptAction main)
             {
-                return GetLcdOutAction(blockName: blockName, actionName: actionName, data: () => { return GetRecursiceDescription(main); });
+                return GetLcdOutputAction(name, blockName: blockName, data: () => { return GetRecursiceDescription(main); });
             }
 
             #endregion
@@ -214,9 +215,9 @@ namespace MinerScript
 
                 var helloAction = new ScriptAction(name: "helloTerminal", action: param => { Echo("Hello Terminal"); });
                 main.Add(helloAction);
-                var helloLcd = GetLcdOutAction(blockName:LCD_OUT_NAME, actionName: "helloLcd", data: () => "Hello Lcd");
+                var helloLcd = GetLcdOutputAction(name: "helloLcd", blockName:LCD_OUT_NAME,  data: () => "Hello Lcd");
                 main.Add(helloLcd);
-                var showActions = GetListActionsToLcdOutAction(blockName: LCD_OUT_NAME, actionName: "listActions", main:main);
+                var showActions = GetListActionsToLcdOutAction(name: "listActions", blockName: LCD_OUT_NAME, main:main);
                 main.Add(showActions);
 
                 return main;
