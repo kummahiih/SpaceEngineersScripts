@@ -130,10 +130,10 @@ namespace MinerScript
             //no serializers of any kind available
             public string GetRecursiceDescription(ScriptAction scriptAction)
             {
-                var ret = scriptAction.ToString();
-                ret += ", childs:{";
-                ForEachA(scriptAction.EntryActions, action => { ret += "{" + action.ToString() + "},"; });
-                ret += "}\n";
+                var ret = "{"+ scriptAction.ToString();
+                ret += ",\n childs:{";
+                ForEachA(scriptAction.EntryActions, action => { ret += GetRecursiceDescription(action) + ","; });
+                ret += "}}\n";
 
                 return ret;
             }
