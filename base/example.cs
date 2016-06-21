@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sandbox.Common;
+using Sandbox.Common.Components;
 using Sandbox.Definitions;
 using Sandbox.Engine;
 using Sandbox.ModAPI.Ingame;
