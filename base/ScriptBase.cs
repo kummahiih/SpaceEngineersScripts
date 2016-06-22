@@ -1,113 +1,22 @@
-﻿using Sandbox.ModAPI;
-using Sandbox.ModAPI.Ingame;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using VRageMath;
+using VRage.Game;
 using System.Text;
-using System.Threading.Tasks;
+using Sandbox.ModAPI.Interfaces;
+using Sandbox.ModAPI.Ingame;
+using Sandbox.Game.EntityComponents;
+using VRage.Game.Components;
+using VRage.Collections;
+using VRage.Game.ObjectBuilders.Definitions;
+using VRage.Game.ModAPI.Ingame;
+using SpaceEngineers.Game.ModAPI.Ingame;
 
 namespace SpaceEngineersScripts
 {
-    public abstract class ScriptBase: IMyGridProgram
+    public class ScriptBase: MyGridProgram
     {
-        protected IMyGridTerminalSystem GridTerminalSystem;
-
-        public Action<string> Echo
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public TimeSpan ElapsedTime
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public bool HasMainMethod
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public bool HasSaveMethod
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public IMyProgrammableBlock Me
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public IMyGridProgramRuntimeInfo Runtime
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public string Storage
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        IMyGridTerminalSystem IMyGridProgram.GridTerminalSystem
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public void Main(string argument) { }
-        public void Save() { }
+        
 
         //public virtual void Program() { }
 
