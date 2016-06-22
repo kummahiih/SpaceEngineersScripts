@@ -21,29 +21,21 @@ namespace ActionSystem
 
         #region copymeto programmable block 
 
-        #region ScriptAction logic
-        
-        #endregion
-
-        #region scriptaction implementations
-      
         #region implementations with block or group names
         const string LCD_OUT_NAME = "outPanel";
 
-        #endregion
-
-        public ScriptAction Initialize()
+        public ScriptProgram Initialize()
         {
-            var main = new MainScriptAction(this,name: "Main");
+            var main = new MainScriptProgram(this,name: "Main");
 
             var helloAction = new LambdaScriptAction(this, name: "helloTerminal", 
                 lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
-            var helloLcd = new NamedBlockAction( 
+            var helloLcd = new NamedBlockProgram( 
                 this, name: "helloLcd", blockName: LCD_OUT_NAME, 
                 blockAction:new WriteTextOnLcd( () => "Hello lcd!"));
             main.Add(helloLcd);
-            var showActions = new NamedBlockAction(
+            var showActions = new NamedBlockProgram(
                 this, name: "listActions", blockName: LCD_OUT_NAME,
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
@@ -52,7 +44,8 @@ namespace ActionSystem
         }
         #endregion
 
-        #region script entry points. yes it gives a warning
+
+        #region script entry points.
 
         public void Main(string eventName)
         {
@@ -63,14 +56,12 @@ namespace ActionSystem
         #endregion
     }
 
-    #region generic actions (no block nor group names)
+    #region block and group related program definitions
 
-    
-
-    public class GroupAction : ConditionAction
+    public class GroupProgram : BlockProgram
     {
         public string GroupName { get; private set; }
-        public GroupAction(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition ) : 
+        public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition ) : 
             base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
         { GroupName = group; }
         public override string ToString() { return base.ToString() + ", G:" + GroupName; }
@@ -81,11 +72,11 @@ namespace ActionSystem
         }
     }
 
-    public class NamedBlockAction : ConditionAction
+    public class NamedBlockProgram : BlockProgram
     {
         public string BlockName { get; private set; }
 
-        public NamedBlockAction(
+        public NamedBlockProgram(
             MyGridProgram env,            
             string name, string blockName, BlockAction blockAction,
             Func<IMyTerminalBlock, bool> blockCondition = null) : 
@@ -102,12 +93,12 @@ namespace ActionSystem
     }
    
 
-    public class ConditionAction : ScriptAction
+    public class BlockProgram : ScriptProgram
     {
         public readonly BlockAction BlockAction;
         public readonly Func<IMyTerminalBlock, bool> BlockCondition;
         public readonly Func<IMyBlockGroup, bool> GroupCondition;
-        public ConditionAction(MyGridProgram env, string name, BlockAction blockAction, Func<IMyBlockGroup, bool> groupCondition = null, Func<IMyTerminalBlock, bool> blockCondition = null) : base(env, name)
+        public BlockProgram(MyGridProgram env, string name, BlockAction blockAction, Func<IMyBlockGroup, bool> groupCondition = null, Func<IMyTerminalBlock, bool> blockCondition = null) : base(env, name)
         {
             BlockAction = blockAction;
             BlockCondition = blockCondition;
@@ -129,18 +120,19 @@ namespace ActionSystem
     }
 
     #endregion
-
+    
+    #region programs
 
     /// <summary>
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
-    public class MainScriptAction: ScriptAction
+    public class MainScriptProgram: ScriptProgram
     {
-        public readonly List<ScriptAction> ScriptActions;
-        public MainScriptAction(MyGridProgram env, string name ): base(env, name) { ScriptActions = new List<ScriptAction>(); }
+        public readonly List<ScriptProgram> ScriptActions;
+        public MainScriptProgram(MyGridProgram env, string name ): base(env, name) { ScriptActions = new List<ScriptProgram>(); }
 
-        public void Add(ScriptAction action) { ScriptActions.Add(action); }
+        public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
         protected override void OnExecute(string param = "")
         {
@@ -162,7 +154,7 @@ namespace ActionSystem
         }
     }
 
-    public class LambdaScriptAction : ScriptAction
+    public class LambdaScriptAction : ScriptProgram
     {
         protected Action<string> Lambda;
 
@@ -174,13 +166,12 @@ namespace ActionSystem
         }
     }
 
-
-    public abstract class ScriptAction
+    public abstract class ScriptProgram
     {
         public MyGridProgram Env { get; private set; }
         public readonly string Name; //here name is id because this is used in game that way
 
-        public ScriptAction(MyGridProgram env, string name) { Env = env; Name = name; }
+        public ScriptProgram(MyGridProgram env, string name) { Env = env; Name = name; }
 
         public override string ToString() { return "N:" + Name; }
 
@@ -193,6 +184,7 @@ namespace ActionSystem
 
         protected abstract void OnExecute(string param = "");
     }
+    #endregion
 
     #region actions for blocks
 
@@ -231,16 +223,16 @@ namespace ActionSystem
         #region linq substitutes
         //linq substitutes without templates nor static extensions
         //static extensions and templates are not supportet it seems
-        public static void ForEachA(this IEnumerable<ScriptAction> source, Action<ScriptAction> action)
+        public static void ForEachA(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEachB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEachG(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
         { foreach (var x in source) { if (action != null) action(x); } }
 
-        public static IEnumerable<ScriptAction> WhereA(this IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
+        public static IEnumerable<ScriptProgram> WhereA(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
         {
-            var ret = new List<ScriptAction>();
+            var ret = new List<ScriptProgram>();
             source.ForEachA(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
