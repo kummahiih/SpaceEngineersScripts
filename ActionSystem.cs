@@ -76,7 +76,7 @@ namespace ActionSystem
         public override string ToString() { return base.ToString() + ", G:" + GroupName; }
         protected override void OnExecute(string param = "")
         {
-            Env.GetBlocks(groupCondition: g => g.HasName(GroupName), blockCondition: BlockCondition)
+            Env.GetBlocks(groupCondition: g => g.Name ==GroupName, blockCondition: BlockCondition)
                 .ForEachB(BlockAction.Execute);                
         }
     }
@@ -140,20 +140,22 @@ namespace ActionSystem
         public readonly List<ScriptAction> ScriptActions;
         public MainScriptAction(MyGridProgram env, string name ): base(env, name) { ScriptActions = new List<ScriptAction>(); }
 
-        public void Add(ScriptAction action) => ScriptActions.Add(action);
+        public void Add(ScriptAction action) { ScriptActions.Add(action); }
 
-        protected override void OnExecute(string param = "") =>
+        protected override void OnExecute(string param = "")
+        {
             ScriptActions
                 .WhereA(x => string.IsNullOrEmpty(param) || x.Name == param)
                 .ForEachA(x => x.Execute(param));
-        
+        }
+
         //no serializers of any kind available
         public override string ToString()
         {          
             var ret = "{" + base.ToString();
             ret += ",\n childs:{";
             ScriptActions
-                .ForEachA(action => { ret += action.ToString() + ","; });
+                .ForEachA(action => { ret += action.ToString() + ",\n"; });
             ret += "}}\n";
 
             return ret;
@@ -180,7 +182,7 @@ namespace ActionSystem
 
         public ScriptAction(MyGridProgram env, string name) { Env = env; Name = name; }
 
-        public override string ToString() => "N:" + Name;       
+        public override string ToString() { return "N:" + Name; }
 
         public void Execute(string param = "")
         {
@@ -213,9 +215,13 @@ namespace ActionSystem
         public BlockAction(string actionName)
         { ActionName = actionName; }
         public virtual void Execute(IMyTerminalBlock block)
-            => block.ApplyTerminalAction(actionName: ActionName);
-        public override string ToString() =>
-            "A:" + ActionName;
+        {
+            block.ApplyTerminalAction(actionName: ActionName);
+        }
+        public override string ToString()
+        {
+            return "A:" + ActionName;
+        }
     }
 
     #endregion
@@ -283,8 +289,6 @@ namespace ActionSystem
         public static bool IsSorter(this IMyTerminalBlock x)       {return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x)        { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
-        public static bool HasName(this IMyTerminalBlock x, String name) { return x.Name == name; }
-        public static bool HasName(this IMyBlockGroup x, String name) { return x.Name == name; }
         #endregion
         #endregion
 
