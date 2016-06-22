@@ -22,92 +22,11 @@ namespace ActionSystem
         #region copymeto programmable block 
 
         #region ScriptAction logic
-        public void Execute(ScriptAction scriptAction, string param = "")
-        {
-            //echo can not be called from ScriptAction so this has to be a local non static function
-            Echo(" on action: " + scriptAction.ToString() + (string.IsNullOrEmpty(param) ? " with param " + param : ""));
-            scriptAction.Execute(param);
-            scriptAction.EntryActions
-                .WhereA(x => string.IsNullOrEmpty(param) ||x.Name == param)
-                .ForEachA( x => Execute(x));
-        }
-
-        //no serializers of any kind available
-        public string GetRecursiceDescription(ScriptAction scriptAction)
-        {
-            var ret = "{" + scriptAction.ToString();
-            ret += ",\n childs:{";
-            scriptAction.EntryActions
-                .ForEachA(action => { ret += GetRecursiceDescription(action) + ","; });
-            ret += "}}\n";
-
-            return ret;
-        }
+        
         #endregion
 
         #region scriptaction implementations
-        #region generic actions (no block nor group names)
-        public class GroupAction : ScriptAction
-        {
-            public String GroupName { get; private set; }
-            public String ActionName { get; private set; }
-            public GroupAction(Action<string> action, string name, string group, string actionName) : base(action, name: name)
-            { GroupName = group; ActionName = actionName; }
-
-            public override string ToString()
-            { return base.ToString() + ", G:" + GroupName + ", A:" + ActionName; }
-
-        }
-
-        public ScriptAction GetGroupAction(string name, string group,
-            Func<IMyTerminalBlock, bool> condition,
-            string actionName)
-        {
-            return new GroupAction(
-                action: param => this.ForBlocksInGoupWhereApply(group: group, condition: condition, actionName: actionName),
-                name: name, group: group, actionName: actionName);
-        }
-
-        public class BlockAction : ScriptAction
-        {
-            public String BlockName { get; private set; }
-            public String ActionName { get; private set; }
-            public BlockAction(Action<string> action, string name, string blockName, string actionName) : base(action, name: name)
-            { BlockName = blockName; ActionName = actionName; }
-
-            public override string ToString()
-            { return base.ToString() + ", B:" + BlockName + ", A:" + ActionName; }
-        }
-
-        public ScriptAction GetBlockAction(string name,
-            Func<IMyTerminalBlock, bool> condition, string blockName, string actionName)
-        {
-            return new BlockAction(
-                action: param => this.ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
-                name: name, blockName: blockName, actionName: actionName);
-        }
-
-        public ScriptAction GetLcdOutputAction(string name, string blockName, Func<string> data)
-        {
-            return new BlockAction(name: name, blockName: blockName,
-                actionName: "LcdOutputAction",
-                action: param =>
-                {
-                    this.ForBlockWhereApplyA(blockName, x => x.IsIMyTextPanel(),
-                        block =>
-                        {
-                            (block as IMyTextPanel).WritePublicText(data());
-                            (block as IMyTextPanel).ShowPublicTextOnScreen();
-                        });
-                });
-        }
-
-        public ScriptAction GetListActionsToLcdOutAction(string name, string blockName, ScriptAction main)
-        {
-            return GetLcdOutputAction(name, blockName: blockName, data: () => { return GetRecursiceDescription(main); });
-        }
-
-        #endregion
+      
         #region implementations with block or group names
         const string LCD_OUT_NAME = "outPanel";
 
@@ -115,13 +34,18 @@ namespace ActionSystem
 
         public ScriptAction Initialize()
         {
-            var main = new ScriptAction(name: "Main");
+            var main = new MainScriptAction(this,name: "Main");
 
-            var helloAction = new ScriptAction(name: "helloTerminal", action: param => { Echo("Hello Terminal"); });
+            var helloAction = new LambdaScriptAction(this, name: "helloTerminal", 
+                lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
-            var helloLcd = GetLcdOutputAction(name: "helloLcd", blockName: LCD_OUT_NAME, data: () => "Hello Lcd");
+            var helloLcd = new NamedBlockAction( 
+                this, name: "helloLcd", blockName: LCD_OUT_NAME, 
+                blockAction:new WriteTextOnLcd( () => "Hello lcd!"));
             main.Add(helloLcd);
-            var showActions = GetListActionsToLcdOutAction(name: "listActions", blockName: LCD_OUT_NAME, main: main);
+            var showActions = new NamedBlockAction(
+                this, name: "listActions", blockName: LCD_OUT_NAME,
+                blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
 
             return main;
@@ -133,50 +57,175 @@ namespace ActionSystem
         public void Main(string eventName)
         {
             var main = Initialize();
-            Execute(main, eventName);
+            main.Execute( eventName);
         }
 
         #endregion
     }
+
+    #region generic actions (no block nor group names)
+
+    
+
+    public class GroupAction : ConditionAction
+    {
+        public string GroupName { get; private set; }
+        public GroupAction(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition ) : 
+            base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
+        { GroupName = group; }
+        public override string ToString() { return base.ToString() + ", G:" + GroupName; }
+        protected override void OnExecute(string param = "")
+        {
+            Env.GetBlocks(groupCondition: g => g.HasName(GroupName), blockCondition: BlockCondition)
+                .ForEachB(BlockAction.Execute);                
+        }
+    }
+
+    public class NamedBlockAction : ConditionAction
+    {
+        public string BlockName { get; private set; }
+
+        public NamedBlockAction(
+            MyGridProgram env,            
+            string name, string blockName, BlockAction blockAction,
+            Func<IMyTerminalBlock, bool> blockCondition = null) : 
+            base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
+        { BlockName = blockName; }
+
+        public override string ToString()
+        { return base.ToString() + ", B:" + BlockName;  }
+
+        protected override void OnExecute(string param = "")
+        {
+            Env.ForBlockWhereApply(blockName: BlockName, blockCondition: BlockCondition, action:BlockAction);
+        }
+    }
+   
+
+    public class ConditionAction : ScriptAction
+    {
+        public readonly BlockAction BlockAction;
+        public readonly Func<IMyTerminalBlock, bool> BlockCondition;
+        public readonly Func<IMyBlockGroup, bool> GroupCondition;
+        public ConditionAction(MyGridProgram env, string name, BlockAction blockAction, Func<IMyBlockGroup, bool> groupCondition = null, Func<IMyTerminalBlock, bool> blockCondition = null) : base(env, name)
+        {
+            BlockAction = blockAction;
+            BlockCondition = blockCondition;
+            GroupCondition = groupCondition;
+        }
+      
+        protected override void OnExecute(string param = "")
+        {
+            Env.GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
+                .ForEachB(BlockAction.Execute);
+        }
+
+        public override string ToString()
+        {
+            return base.ToString() + ", " + BlockAction.ToString() +
+                (GroupCondition != null ? ", GC:" + GroupCondition.GetType().Name : "") +
+                (BlockCondition != null ? ", BC:" + BlockCondition.GetType().Name : "");
+        }
+    }
+
+    #endregion
 
 
     /// <summary>
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
-    public class ScriptAction
+    public class MainScriptAction: ScriptAction
     {
-        public String Name { get; set; } //here name is id because this is used in game that way
-        protected Action<string> ExecuteAction { get; private set; }
-        public List<ScriptAction> EntryActions { get; private set; }
+        public readonly List<ScriptAction> ScriptActions;
+        public MainScriptAction(MyGridProgram env, string name ): base(env, name) { ScriptActions = new List<ScriptAction>(); }
 
-        public ScriptAction(Action<string> action = null, string name = null)
-        {
-            ExecuteAction = action; Name = name;
-            EntryActions = new List<ScriptAction>();
-        }
-        public void Add(ScriptAction action) { EntryActions.Add(action); }
+        public void Add(ScriptAction action) => ScriptActions.Add(action);
 
-        public virtual void Execute(string param = "")
-        {
-            if (ExecuteAction != null)
-                ExecuteAction.Invoke(param);
-        }
-
+        protected override void OnExecute(string param = "") =>
+            ScriptActions
+                .WhereA(x => string.IsNullOrEmpty(param) || x.Name == param)
+                .ForEachA(x => x.Execute(param));
+        
+        //no serializers of any kind available
         public override string ToString()
-        {
-            return "N:" + Name;
+        {          
+            var ret = "{" + base.ToString();
+            ret += ",\n childs:{";
+            ScriptActions
+                .ForEachA(action => { ret += action.ToString() + ","; });
+            ret += "}}\n";
+
+            return ret;
         }
     }
 
-    public static class LinqStaticExtensions
+    public class LambdaScriptAction : ScriptAction
+    {
+        protected Action<string> Lambda;
+
+        public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda;}
+
+        protected override void OnExecute(string param = "")
+        {
+            if (Lambda != null) Lambda(param);
+        }
+    }
+
+
+    public abstract class ScriptAction
+    {
+        public MyGridProgram Env { get; private set; }
+        public readonly string Name; //here name is id because this is used in game that way
+
+        public ScriptAction(MyGridProgram env, string name) { Env = env; Name = name; }
+
+        public override string ToString() => "N:" + Name;       
+
+        public void Execute(string param = "")
+        {
+            param = string.IsNullOrEmpty(param) ? "" : param;
+            Env.Echo("executing: " + Name + "(" + param + ")");
+            OnExecute(param);
+        }
+
+        protected abstract void OnExecute(string param = "");
+    }
+
+    #region actions for blocks
+
+    public class WriteTextOnLcd : BlockAction
+    {
+        public readonly Func<string> GetText;
+        public WriteTextOnLcd(Func<string> getText) : base("WriteTextOnLcd") { GetText = getText; }
+        public override void Execute(IMyTerminalBlock block)
+        {
+            var tp = block as IMyTextPanel;
+            if (GetText == null || tp == null) return;
+            tp.WritePublicText(GetText());
+            tp.ShowPublicTextOnScreen();
+        }
+    }
+
+    public class BlockAction
+    {
+        public readonly string ActionName;
+        public BlockAction(string actionName)
+        { ActionName = actionName; }
+        public virtual void Execute(IMyTerminalBlock block)
+            => block.ApplyTerminalAction(actionName: ActionName);
+        public override string ToString() =>
+            "A:" + ActionName;
+    }
+
+    #endregion
+
+    public static class Ext
     {
         #region linq substitutes
         //linq substitutes without templates nor static extensions
         //static extensions and templates are not supportet it seems
         public static void ForEachA(this IEnumerable<ScriptAction> source, Action<ScriptAction> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachIB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEachB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
         { foreach (var x in source) { if (action != null) action(x); } }
@@ -195,60 +244,51 @@ namespace ActionSystem
             source.ForEachB(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
-        public static IEnumerable<IMyBlockGroup> WhereG(this IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition)
+        public static IEnumerable<IMyBlockGroup> WhereG(this IEnumerable<IMyBlockGroup> source, Func<IMyBlockGroup, bool> condition)
         {
             var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
             source.ForEachG(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
         #endregion
-
         #region basic operations
         public static void ApplyTerminalAction(this IMyTerminalBlock block, string actionName)
         {
             block.GetActionWithName(actionName).Apply(block);
         }
-
-        public static List<IMyTerminalBlock> GetBlocks(this MyGridProgram This, string group)
+        public static List<IMyTerminalBlock> GetBlocks(this MyGridProgram This, Func<IMyBlockGroup, bool> groupCondition = null, Func<IMyTerminalBlock, bool> blockCondition = null)
         {
             var blocksConv = new List<IMyTerminalBlock>();
             var blocks = new List<IMyTerminalBlock>();
             var groups = new List<IMyBlockGroup>();
             This.GridTerminalSystem.GetBlockGroups(groups);
-            groups.WhereG(x => x.Name == group)
+            groups.WhereG(CheckNull(groupCondition))
                 .ForEachG(x => blocks.AddRange(x.Blocks));
-            blocks.ForEachIB(b => blocksConv.Add((IMyTerminalBlock)b));
+            blocks.WhereB(CheckNull(blockCondition))
+                .ForEachB(b => blocksConv.Add(b));
             return blocksConv;
         }
-
-        public static void ForBlocksInGoupWhereApply(this MyGridProgram This, string group, Func<IMyTerminalBlock, bool> condition, string actionName)
+        
+        public static void ForBlockWhereApply(this MyGridProgram This, string blockName, BlockAction action, Func<IMyTerminalBlock, bool> blockCondition = null)
         {
-            This.GetBlocks(group: group)
-                .WhereB(x => x is IMyConveyorSorter)
-                .ForEachB(x => x.ApplyTerminalAction( actionName: actionName));
+            var block = This.GridTerminalSystem.GetBlockWithName(blockName);
+            if (block != null && (CheckNull(blockCondition)(block)) && action != null)
+                action.Execute(block);
         }
-
-        public static void ForBlockWhereApplyA(this MyGridProgram This, string name, Func<IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
-        {
-            var block = This.GridTerminalSystem.GetBlockWithName(name);
-            if (block != null && (condition == null || condition(block)) && command != null)
-                command(block);
-        }
-
-        public static void ForBlockWhereApplyS(this MyGridProgram This, string name, Func<IMyTerminalBlock, bool> condition, string actionName)
-        {
-            This.ForBlockWhereApplyA(name, condition, b => b.ApplyTerminalAction( actionName));
-        }
+        
         #endregion
+        public static Func<IMyTerminalBlock, bool> CheckNull(Func<IMyTerminalBlock, bool> x){ return x!=null? x : _ => true; }
+        public static Func<IMyBlockGroup, bool> CheckNull(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
         #region basic tests to use with Where
         public static bool IsSorter(this IMyTerminalBlock x)       {return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x)        { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
+        public static bool HasName(this IMyTerminalBlock x, String name) { return x.Name == name; }
+        public static bool HasName(this IMyBlockGroup x, String name) { return x.Name == name; }
         #endregion
-
         #endregion
 
     } // Omit this last closing brace as the game will add it back in
 
-
 }
+
