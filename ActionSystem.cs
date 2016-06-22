@@ -50,7 +50,7 @@ namespace ActionSystem
         public void Main(string eventName)
         {
             var main = Initialize();
-            main.Execute( eventName);
+            main.Main( eventName);
         }
 
         #endregion
@@ -65,10 +65,10 @@ namespace ActionSystem
             base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
         { GroupName = group; }
         public override string ToString() { return base.ToString() + ", G:" + GroupName; }
-        protected override void OnExecute(string param = "")
+        protected override void OnMain(string param = "")
         {
-            Env.GetBlocks(groupCondition: g => g.Name ==GroupName, blockCondition: BlockCondition)
-                .ForEachB(BlockAction.Execute);                
+            Ext.ForEach(Env.GetBlocks(groupCondition: g => g.Name == GroupName, blockCondition: BlockCondition)
+, BlockAction.Execute);                
         }
     }
 
@@ -86,9 +86,9 @@ namespace ActionSystem
         public override string ToString()
         { return base.ToString() + ", B:" + BlockName;  }
 
-        protected override void OnExecute(string param = "")
+        protected override void OnMain(string param = "")
         {
-            Env.ForBlockWhereApply(blockName: BlockName, blockCondition: BlockCondition, action:BlockAction);
+            Env.ForNamedBlockIfApply(blockName: BlockName, blockCondition: BlockCondition, action:BlockAction);
         }
     }
    
@@ -105,10 +105,10 @@ namespace ActionSystem
             GroupCondition = groupCondition;
         }
       
-        protected override void OnExecute(string param = "")
+        protected override void OnMain(string param = "")
         {
-            Env.GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
-                .ForEachB(BlockAction.Execute);
+            Ext.ForEach(Env.GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
+, BlockAction.Execute);
         }
 
         public override string ToString()
@@ -134,11 +134,11 @@ namespace ActionSystem
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
-        protected override void OnExecute(string param = "")
+        protected override void OnMain(string param = "")
         {
             ScriptActions
-                .WhereA(x => string.IsNullOrEmpty(param) || x.Name == param)
-                .ForEachA(x => x.Execute(param));
+                .Where(x => string.IsNullOrEmpty(param) || x.Name == param)
+                .ForEach(x => x.Main(param));
         }
 
         //no serializers of any kind available
@@ -146,8 +146,8 @@ namespace ActionSystem
         {          
             var ret = "{" + base.ToString();
             ret += ",\n childs:{";
-            ScriptActions
-                .ForEachA(action => { ret += action.ToString() + ",\n"; });
+            Ext.ForEach(ScriptActions
+, action => { ret += action.ToString() + ",\n"; });
             ret += "}}\n";
 
             return ret;
@@ -160,7 +160,7 @@ namespace ActionSystem
 
         public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda;}
 
-        protected override void OnExecute(string param = "")
+        protected override void OnMain(string param = "")
         {
             if (Lambda != null) Lambda(param);
         }
@@ -175,14 +175,14 @@ namespace ActionSystem
 
         public override string ToString() { return "N:" + Name; }
 
-        public void Execute(string param = "")
+        public void Main(string param = "")
         {
             param = string.IsNullOrEmpty(param) ? "" : param;
             Env.Echo("executing: " + Name + "(" + param + ")");
-            OnExecute(param);
+            OnMain(param);
         }
 
-        protected abstract void OnExecute(string param = "");
+        protected abstract void OnMain(string param = "");
     }
     #endregion
 
@@ -223,29 +223,29 @@ namespace ActionSystem
         #region linq substitutes
         //linq substitutes without templates nor static extensions
         //static extensions and templates are not supportet it seems
-        public static void ForEachA(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
+        public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
         { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
+        public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
         { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachG(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
+        public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
         { foreach (var x in source) { if (action != null) action(x); } }
 
-        public static IEnumerable<ScriptProgram> WhereA(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
+        public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
         {
             var ret = new List<ScriptProgram>();
-            source.ForEachA(x => { if (condition == null || condition(x)) ret.Add(x); });
+            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
-        public static IEnumerable<IMyTerminalBlock> WhereB(this IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
+        public static IEnumerable<IMyTerminalBlock> Where(this IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
         {
             var ret = new List<IMyTerminalBlock>();
-            source.ForEachB(x => { if (condition == null || condition(x)) ret.Add(x); });
+            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
-        public static IEnumerable<IMyBlockGroup> WhereG(this IEnumerable<IMyBlockGroup> source, Func<IMyBlockGroup, bool> condition)
+        public static IEnumerable<IMyBlockGroup> Where(this IEnumerable<IMyBlockGroup> source, Func<IMyBlockGroup, bool> condition)
         {
-            var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
-            source.ForEachG(x => { if (condition == null || condition(x)) ret.Add(x); });
+            var ret = new List<IMyBlockGroup>();
+            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
         #endregion
@@ -260,23 +260,23 @@ namespace ActionSystem
             var blocks = new List<IMyTerminalBlock>();
             var groups = new List<IMyBlockGroup>();
             This.GridTerminalSystem.GetBlockGroups(groups);
-            groups.WhereG(CheckNull(groupCondition))
-                .ForEachG(x => blocks.AddRange(x.Blocks));
-            blocks.WhereB(CheckNull(blockCondition))
-                .ForEachB(b => blocksConv.Add(b));
+            groups.Where(ReplaceNullCondition(groupCondition))
+                .ForEach(x => blocks.AddRange(x.Blocks));
+            blocks.Where(ReplaceNullCondition(blockCondition))
+                .ForEach(b => blocksConv.Add(b));
             return blocksConv;
         }
         
-        public static void ForBlockWhereApply(this MyGridProgram This, string blockName, BlockAction action, Func<IMyTerminalBlock, bool> blockCondition = null)
+        public static void ForNamedBlockIfApply(this MyGridProgram This, string blockName, BlockAction action, Func<IMyTerminalBlock, bool> blockCondition = null)
         {
             var block = This.GridTerminalSystem.GetBlockWithName(blockName);
-            if (block != null && (CheckNull(blockCondition)(block)) && action != null)
+            if (block != null && (ReplaceNullCondition(blockCondition)(block)) && action != null)
                 action.Execute(block);
         }
         
         #endregion
-        public static Func<IMyTerminalBlock, bool> CheckNull(Func<IMyTerminalBlock, bool> x){ return x!=null? x : _ => true; }
-        public static Func<IMyBlockGroup, bool> CheckNull(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
+        public static Func<IMyTerminalBlock, bool> ReplaceNullCondition(Func<IMyTerminalBlock, bool> x){ return x!=null? x : _ => true; }
+        public static Func<IMyBlockGroup, bool> ReplaceNullCondition(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
         #region basic tests to use with Where
         public static bool IsSorter(this IMyTerminalBlock x)       {return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x)        { return x is IMyTimerBlock; }
