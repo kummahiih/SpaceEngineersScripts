@@ -12,44 +12,15 @@ using VRage.Game.ObjectBuilders.Definitions;
 using VRage.Game.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using SpaceEngineersScripts;
+using static ActionSystem.Program;
 
 namespace ActionSystem
 {
     public class Program : MyGridProgram
     {
 
-        #region copymeto programmable block
-        #region linq substitutes
-        //linq substitutes without templates nor static extensions
-        //static extensions and templates are not supportet it seems
-        public static void ForEachA(IEnumerable<ScriptAction> source, Action<ScriptAction> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachIB(IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachB(IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEachG(IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        #region copymeto programmable block 
 
-        public static IEnumerable<ScriptAction> WhereA(IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
-        {
-            var ret = new List<ScriptAction>();
-            ForEachA(source, x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyTerminalBlock> WhereB(IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
-        {
-            var ret = new List<IMyTerminalBlock>();
-            ForEachB(source, x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyBlockGroup> WhereG(IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition)
-        {
-            var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
-            ForEachG(source, x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        #endregion
         #region basic operations
         public static void ApplyTerminalAction(IMyTerminalBlock block, string actionName)
         {
@@ -62,14 +33,17 @@ namespace ActionSystem
             var blocks = new List<IMyTerminalBlock>();
             var groups = new List<IMyBlockGroup>();
             GridTerminalSystem.GetBlockGroups(groups);
-            ForEachG(WhereG(groups, x => x.Name == group), x => blocks.AddRange(x.Blocks));
-            ForEachIB(blocks, b => blocksConv.Add((IMyTerminalBlock)b));
+            groups.WhereG( x => x.Name == group)
+                .ForEachG( x => blocks.AddRange(x.Blocks));
+            blocks.ForEachIB(b => blocksConv.Add((IMyTerminalBlock)b));
             return blocksConv;
         }
 
         public void ForBlocksInGoupWhereApply(string group, Func<IMyTerminalBlock, bool> condition, string actionName)
         {
-            ForEachB(WhereB(GetBlocks(group: group), x => x is IMyConveyorSorter), x => ApplyTerminalAction(x, actionName: actionName));
+            GetBlocks(group: group)
+                .WhereB(x => x is IMyConveyorSorter)
+                .ForEachB(x => ApplyTerminalAction(x, actionName: actionName));
         }
 
 
@@ -100,43 +74,16 @@ namespace ActionSystem
         #endregion
 
         #region ScriptAction logic
-        /// <summary>
-        /// wraps actions into a tree like stucture. 
-        /// actions are implemented as delegates, because some methods can be only called 
-        /// </summary>
-        public class ScriptAction
-        {
-            public String Name { get; set; } //here name is id because this is used in game that way
-            protected Action<string> ExecuteAction { get; private set; }
-            public List<ScriptAction> EntryActions { get; private set; }
-
-            public ScriptAction(Action<string> action = null, string name = null)
-            {
-                ExecuteAction = action; Name = name;
-                EntryActions = new List<ScriptAction>();
-            }
-            public void Add(ScriptAction action) { EntryActions.Add(action); }
-
-            public virtual void Execute(string param = "")
-            {
-                if (ExecuteAction != null)
-                    ExecuteAction.Invoke(param);
-            }
-
-            public override string ToString()
-            {
-                return "N:" + Name;
-            }
-
-        }
+        
 
         public void Execute(ScriptAction scriptAction, string param = "")
         {
             //echo can not be called from ScriptAction so this has to be a local non static function
             Echo(" on action: " + scriptAction.ToString() + (string.IsNullOrEmpty(param) ? " with param " + param : ""));
             scriptAction.Execute(param);
-            ForEachA(WhereA(scriptAction.EntryActions, x => string.IsNullOrEmpty(param) ||
-            x.Name == param), x => Execute(x));
+            scriptAction.EntryActions
+                .WhereA(x => string.IsNullOrEmpty(param) ||x.Name == param)
+                .ForEachA( x => Execute(x));
         }
 
         //no serializers of any kind available
@@ -144,7 +91,8 @@ namespace ActionSystem
         {
             var ret = "{" + scriptAction.ToString();
             ret += ",\n childs:{";
-            ForEachA(scriptAction.EntryActions, action => { ret += GetRecursiceDescription(action) + ","; });
+            scriptAction.EntryActions
+                .ForEachA(action => { ret += GetRecursiceDescription(action) + ","; });
             ret += "}}\n";
 
             return ret;
@@ -243,7 +191,74 @@ namespace ActionSystem
         }
 
         #endregion
+    }
+
+
+    /// <summary>
+    /// wraps actions into a tree like stucture. 
+    /// actions are implemented as delegates, because some methods can be only called 
+    /// </summary>
+    public class ScriptAction
+    {
+        public String Name { get; set; } //here name is id because this is used in game that way
+        protected Action<string> ExecuteAction { get; private set; }
+        public List<ScriptAction> EntryActions { get; private set; }
+
+        public ScriptAction(Action<string> action = null, string name = null)
+        {
+            ExecuteAction = action; Name = name;
+            EntryActions = new List<ScriptAction>();
+        }
+        public void Add(ScriptAction action) { EntryActions.Add(action); }
+
+        public virtual void Execute(string param = "")
+        {
+            if (ExecuteAction != null)
+                ExecuteAction.Invoke(param);
+        }
+
+        public override string ToString()
+        {
+            return "N:" + Name;
+        }
+    }
+
+    public static class LinqStaticExtensions
+    {
+        #region linq substitutes
+        //linq substitutes without templates nor static extensions
+        //static extensions and templates are not supportet it seems
+        public static void ForEachA(this IEnumerable<ScriptAction> source, Action<ScriptAction> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEachIB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEachB(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEachG(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+
+        public static IEnumerable<ScriptAction> WhereA(this IEnumerable<ScriptAction> source, Func<ScriptAction, bool> condition)
+        {
+            var ret = new List<ScriptAction>();
+            source.ForEachA(x => { if (condition == null || condition(x)) ret.Add(x); });
+            return ret;
+        }
+        public static IEnumerable<IMyTerminalBlock> WhereB(this IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
+        {
+            var ret = new List<IMyTerminalBlock>();
+            source.ForEachB(x => { if (condition == null || condition(x)) ret.Add(x); });
+            return ret;
+        }
+        public static IEnumerable<IMyBlockGroup> WhereG(this IEnumerable<Sandbox.ModAPI.Ingame.IMyBlockGroup> source, Func<Sandbox.ModAPI.Ingame.IMyBlockGroup, bool> condition)
+        {
+            var ret = new List<Sandbox.ModAPI.Ingame.IMyBlockGroup>();
+            source.ForEachG(x => { if (condition == null || condition(x)) ret.Add(x); });
+            return ret;
+        }
+        #endregion
         #endregion
 
-    }
+    } // Omit this last closing brace as the game will add it back in
+
+
 }
