@@ -20,7 +20,7 @@ namespace ActionSystem
     {
 
         #region copymeto programmable block 
-
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs
         #region implementations with block or group names
         const string LCD_OUT_NAME = "outPanel";
 
