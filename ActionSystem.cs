@@ -21,61 +21,7 @@ namespace ActionSystem
 
         #region copymeto programmable block 
 
-        #region basic operations
-        public static void ApplyTerminalAction(IMyTerminalBlock block, string actionName)
-        {
-            block.GetActionWithName(actionName).Apply(block);
-        }
-
-        public List<IMyTerminalBlock> GetBlocks(string group)
-        {
-            var blocksConv = new List<IMyTerminalBlock>();
-            var blocks = new List<IMyTerminalBlock>();
-            var groups = new List<IMyBlockGroup>();
-            GridTerminalSystem.GetBlockGroups(groups);
-            groups.WhereG( x => x.Name == group)
-                .ForEachG( x => blocks.AddRange(x.Blocks));
-            blocks.ForEachIB(b => blocksConv.Add((IMyTerminalBlock)b));
-            return blocksConv;
-        }
-
-        public void ForBlocksInGoupWhereApply(string group, Func<IMyTerminalBlock, bool> condition, string actionName)
-        {
-            GetBlocks(group: group)
-                .WhereB(x => x is IMyConveyorSorter)
-                .ForEachB(x => ApplyTerminalAction(x, actionName: actionName));
-        }
-
-
-        public void ForBlockWhereApplyA(string name, Func<IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
-        {
-            var block = GridTerminalSystem.GetBlockWithName(name);
-            if (block != null && (condition == null || condition(block)) && command != null)
-                command(block);
-        }
-
-        public void ForBlockWhereApplyS(string name, Func<IMyTerminalBlock, bool> condition, string actionName)
-        {
-            ForBlockWhereApplyA(name, condition, b => ApplyTerminalAction(b, actionName));
-        }
-        #endregion
-        #region basic tests to use with Where
-        public bool IsSorter(IMyTerminalBlock x)
-        { return x is IMyConveyorSorter; }
-
-        public bool IsTimer(IMyTerminalBlock x)  
-        { return x is IMyTimerBlock; }
-
-        public bool IsIMyTextPanel(IMyTerminalBlock x)
-        { return x is IMyTextPanel; }
-
-        public bool NoCondition(IMyTerminalBlock x)
-        { return true; }
-        #endregion
-
         #region ScriptAction logic
-        
-
         public void Execute(ScriptAction scriptAction, string param = "")
         {
             //echo can not be called from ScriptAction so this has to be a local non static function
@@ -118,7 +64,7 @@ namespace ActionSystem
             string actionName)
         {
             return new GroupAction(
-                action: param => ForBlocksInGoupWhereApply(group: group, condition: condition, actionName: actionName),
+                action: param => this.ForBlocksInGoupWhereApply(group: group, condition: condition, actionName: actionName),
                 name: name, group: group, actionName: actionName);
         }
 
@@ -137,7 +83,7 @@ namespace ActionSystem
             Func<IMyTerminalBlock, bool> condition, string blockName, string actionName)
         {
             return new BlockAction(
-                action: param => ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
+                action: param => this.ForBlockWhereApplyS(name: name, condition: condition, actionName: actionName),
                 name: name, blockName: blockName, actionName: actionName);
         }
 
@@ -147,7 +93,7 @@ namespace ActionSystem
                 actionName: "LcdOutputAction",
                 action: param =>
                 {
-                    ForBlockWhereApplyA(blockName, x => IsIMyTextPanel(x),
+                    this.ForBlockWhereApplyA(blockName, x => x.IsIMyTextPanel(),
                         block =>
                         {
                             (block as IMyTextPanel).WritePublicText(data());
@@ -256,6 +202,50 @@ namespace ActionSystem
             return ret;
         }
         #endregion
+
+        #region basic operations
+        public static void ApplyTerminalAction(this IMyTerminalBlock block, string actionName)
+        {
+            block.GetActionWithName(actionName).Apply(block);
+        }
+
+        public static List<IMyTerminalBlock> GetBlocks(this MyGridProgram This, string group)
+        {
+            var blocksConv = new List<IMyTerminalBlock>();
+            var blocks = new List<IMyTerminalBlock>();
+            var groups = new List<IMyBlockGroup>();
+            This.GridTerminalSystem.GetBlockGroups(groups);
+            groups.WhereG(x => x.Name == group)
+                .ForEachG(x => blocks.AddRange(x.Blocks));
+            blocks.ForEachIB(b => blocksConv.Add((IMyTerminalBlock)b));
+            return blocksConv;
+        }
+
+        public static void ForBlocksInGoupWhereApply(this MyGridProgram This, string group, Func<IMyTerminalBlock, bool> condition, string actionName)
+        {
+            This.GetBlocks(group: group)
+                .WhereB(x => x is IMyConveyorSorter)
+                .ForEachB(x => x.ApplyTerminalAction( actionName: actionName));
+        }
+
+        public static void ForBlockWhereApplyA(this MyGridProgram This, string name, Func<IMyTerminalBlock, bool> condition, Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock> command)
+        {
+            var block = This.GridTerminalSystem.GetBlockWithName(name);
+            if (block != null && (condition == null || condition(block)) && command != null)
+                command(block);
+        }
+
+        public static void ForBlockWhereApplyS(this MyGridProgram This, string name, Func<IMyTerminalBlock, bool> condition, string actionName)
+        {
+            This.ForBlockWhereApplyA(name, condition, b => b.ApplyTerminalAction( actionName));
+        }
+        #endregion
+        #region basic tests to use with Where
+        public static bool IsSorter(this IMyTerminalBlock x)       {return x is IMyConveyorSorter; }
+        public static bool IsTimer(this IMyTerminalBlock x)        { return x is IMyTimerBlock; }
+        public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
+        #endregion
+
         #endregion
 
     } // Omit this last closing brace as the game will add it back in
