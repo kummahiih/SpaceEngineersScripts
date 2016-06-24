@@ -106,6 +106,7 @@
     <Compile Include="ActionSystem.cs" />
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
+    <Compile Include="BasicInventory.cs" />
     <Compile Include="miner.cs" />
     <Compile Include="Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
