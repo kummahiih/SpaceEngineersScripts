@@ -25,11 +25,11 @@ namespace BasicInventory
         #region implementations with block or group names
         const string LCD_OUT_NAME = "outPanel";
 
-        public ScriptProgram Initialize()
+        public MainScriptProgram Initialize()
         {
             var main = new MainScriptProgram(this, name: "Main");
 
-            var helloAction = new LambdaScriptProgram(this, name: "helloTerminal",
+            var helloAction = new LambdaScriptProgram<void,void>(this, name: "helloTerminal",
                 lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
             var helloLcd = new NamedBlockProgram(
@@ -42,7 +42,7 @@ namespace BasicInventory
             main.Add(showActions);
 
 
-            var inventory = new MainScriptProgram(this, name: "Inventory");
+            /*var inventory = new MainScriptProgram(this, name: "Inventory");
             main.Add(inventory);
 
             var oxygenMeasureProgram = 
@@ -57,7 +57,7 @@ namespace BasicInventory
                 groupCondition:null,
                 blockCondition: Ext.IsOxygenTank,
                 blockAction: 
-
+                */
 
             return main;
         }
@@ -77,7 +77,7 @@ namespace BasicInventory
 
     #region block and group related program definitions
 
-    public class GroupProgram : BlockProgram
+    public class GroupProgram<IT, OT> : BlockProgram<IT, OT>
     {
         public string GroupName { get; private set; }
         public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition) :
@@ -91,7 +91,7 @@ namespace BasicInventory
         }
     }
 
-    public class NamedBlockProgram : BlockProgram
+    public class NamedBlockProgram<IT, OT> : BlockProgram<IT, OT>
     {
         public string BlockName { get; private set; }
 
@@ -112,7 +112,7 @@ namespace BasicInventory
     }
 
 
-    public class BlockProgram : ScriptProgram
+    public class BlockProgram<IT, OT> : ScriptProgram<IT, OT>
     {
         public readonly BlockAction BlockAction;
         public readonly Func<IMyTerminalBlock, bool> BlockCondition;
@@ -146,12 +146,12 @@ namespace BasicInventory
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
-    public class MainScriptProgram : ScriptProgram
+    public class MainScriptProgram : ScriptBase
     {
-        public readonly List<ScriptProgram> ScriptPrograms;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptPrograms = new List<ScriptProgram>(); }
+        public readonly List<ScriptBase> ScriptPrograms;
+        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptPrograms = new List<ScriptBase>(); }
 
-        public void Add(ScriptProgram action) { ScriptPrograms.Add(action); }
+        public void Add(ScriptBase action) { ScriptPrograms.Add(action); }
 
         protected override void OnMain(string param = "")
         {
@@ -172,24 +172,24 @@ namespace BasicInventory
         }
     }
 
-    public class LambdaScriptProgram : ScriptProgram
+    public class LambdaScriptProgram<IT, OT> : ScriptProgram<IT, OT>
     {
-        protected Action<string> Lambda;
+        protected Func<string,IT,OT> Lambda;
 
-        public LambdaScriptProgram(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda; }
+        public LambdaScriptProgram(MyGridProgram env, string name, Func<string, IT, OT> lambda) : base(env, name) { Lambda = lambda; }
 
         protected override void OnMain(string param = "")
         {
-            if (Lambda != null) Lambda(param);
+            if (Lambda != null) Result = Lambda(param, Input);
         }
     }
 
-    public abstract class ScriptProgram<OT, IT>: ScriptBase
+    public abstract class ScriptProgram<IT, OT>: ScriptBase
     {
         public ScriptProgram(MyGridProgram env, string name) : base(env, name){}
 
         //these could be classes of their own, but I am a bit afraid that i get problems with generics
-        public OT Result { get; private set; }
+        public OT Result { get; protected set; }
         public IT Input { get; set; }
         private string InputToString() => (Input != null ? " ," + Input.ToString() : "");
         private string ResultToString() => (Result != null ? " ," + Result.ToString() : "");
