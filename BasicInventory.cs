@@ -29,7 +29,7 @@ namespace BasicInventory
         {
             var main = new MainScriptProgram(this, name: "Main");
 
-            var helloAction = new LambdaScriptProgram<void,void>(this, name: "helloTerminal",
+            var helloAction = new LambdaScriptProgram(this, name: "helloTerminal",
                 lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
             var helloLcd = new NamedBlockProgram(
@@ -77,7 +77,7 @@ namespace BasicInventory
 
     #region block and group related program definitions
 
-    public class GroupProgram<IT, OT> : BlockProgram<IT, OT>
+    public class GroupProgram: BlockProgram
     {
         public string GroupName { get; private set; }
         public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition) :
@@ -91,7 +91,7 @@ namespace BasicInventory
         }
     }
 
-    public class NamedBlockProgram<IT, OT> : BlockProgram<IT, OT>
+    public class NamedBlockProgram: BlockProgram
     {
         public string BlockName { get; private set; }
 
@@ -112,7 +112,7 @@ namespace BasicInventory
     }
 
 
-    public class BlockProgram<IT, OT> : ScriptProgram<IT, OT>
+    public class BlockProgram : ScriptBase
     {
         public readonly BlockAction BlockAction;
         public readonly Func<IMyTerminalBlock, bool> BlockCondition;
@@ -170,39 +170,52 @@ namespace BasicInventory
 
             return ret;
         }
+
+        public void Connect()
     }
 
-    public class LambdaScriptProgram<IT, OT> : ScriptProgram<IT, OT>
+    public class LambdaScriptProgram : ScriptBase
     {
-        protected Func<string,IT,OT> Lambda;
+        protected Action<string> Lambda;
 
-        public LambdaScriptProgram(MyGridProgram env, string name, Func<string, IT, OT> lambda) : base(env, name) { Lambda = lambda; }
+        public LambdaScriptProgram(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda; }
 
         protected override void OnMain(string param = "")
         {
-            if (Lambda != null) Result = Lambda(param, Input);
+            if (Lambda != null) Lambda(param);
         }
     }
 
-    public abstract class ScriptProgram<IT, OT>: ScriptBase
+    //public abstract class ScriptProgram<IT, OT>: ScriptBase
+    //{
+    //    public ScriptProgram(MyGridProgram env, string name) : base(env, name){}
+
+    //    //these could be classes of their own, but I am a bit afraid that i get problems with generics
+    //    public OT Result { get; protected set; }
+    //    public IT Input { get; set; }
+    //    private string InputToString() => (Input != null ? " ," + Input.ToString() : "");
+    //    private string ResultToString() => (Result != null ? " ," + Result.ToString() : "");
+
+    //    protected override void OnMainStart(string param = "") {
+    //        base.OnMainStart(param);
+    //        Env.Echo("{" + InputToString() +"}");
+    //    }
+    //    protected override void OnMainEnd() {
+    //        base.OnMainStart();
+    //        Env.Echo("{" + ResultToString() + "}");
+    //    }
+    //}
+
+    #region input and output
+    public class Input<TI> : Lazy<TI> { }
+    public class Output<TO> : Lazy<TO> { }
+    public class Connection
     {
-        public ScriptProgram(MyGridProgram env, string name) : base(env, name){}
-
-        //these could be classes of their own, but I am a bit afraid that i get problems with generics
-        public OT Result { get; protected set; }
-        public IT Input { get; set; }
-        private string InputToString() => (Input != null ? " ," + Input.ToString() : "");
-        private string ResultToString() => (Result != null ? " ," + Result.ToString() : "");
-
-        protected override void OnMainStart(string param = "") {
-            base.OnMainStart(param);
-            Env.Echo("{" + InputToString() +"}");
-        }
-        protected override void OnMainEnd() {
-            base.OnMainStart();
-            Env.Echo("{" + ResultToString() + "}");
-        }
+        public ScriptBase Source { get; private set; }
+        public ScriptBase Sink { get; private set; }
+        public Connection(ScriptBase source, ScriptBase sink)   { Source = source; Sink = sink; }
     }
+    #endregion
 
     public abstract class ScriptBase
     {
