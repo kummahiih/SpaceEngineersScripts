@@ -14,22 +14,21 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using SpaceEngineersScripts;
 using static ActionSystem.Program;
 
-namespace BasicInventory
+namespace ActionSystemIOAsEvents
 {
     public class Program : MyGridProgram
     {
 
         #region copymeto programmable block 
-        //based on https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs
-        //written 23-06-2016
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs
         #region implementations with block or group names
         const string LCD_OUT_NAME = "outPanel";
 
-        public MainScriptProgram Initialize()
+        public ScriptProgram Initialize()
         {
             var main = new MainScriptProgram(this, name: "Main");
 
-            var helloAction = new LambdaScriptProgram<void,void>(this, name: "helloTerminal",
+            var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
                 lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
             var helloLcd = new NamedBlockProgram(
@@ -40,24 +39,6 @@ namespace BasicInventory
                 this, name: "listActions", blockName: LCD_OUT_NAME,
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
-
-
-            /*var inventory = new MainScriptProgram(this, name: "Inventory");
-            main.Add(inventory);
-
-            var oxygenMeasureProgram = 
-                new OxygenMeasureProgram(this, name: "measureOxygen");
-
-            var oxygenToLcdAction = 
-                new WriteTextOnLcd(this, );
-
-            var oxygenProgram = new BlockProgram(
-                this,
-                name:"oxygenLevelToLcd", 
-                groupCondition:null,
-                blockCondition: Ext.IsOxygenTank,
-                blockAction: 
-                */
 
             return main;
         }
@@ -77,7 +58,7 @@ namespace BasicInventory
 
     #region block and group related program definitions
 
-    public class GroupProgram<IT, OT> : BlockProgram<IT, OT>
+    public class GroupProgram : BlockProgram
     {
         public string GroupName { get; private set; }
         public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition) :
@@ -91,7 +72,7 @@ namespace BasicInventory
         }
     }
 
-    public class NamedBlockProgram<IT, OT> : BlockProgram<IT, OT>
+    public class NamedBlockProgram : BlockProgram
     {
         public string BlockName { get; private set; }
 
@@ -112,7 +93,7 @@ namespace BasicInventory
     }
 
 
-    public class BlockProgram<IT, OT> : ScriptProgram<IT, OT>
+    public class BlockProgram : ScriptProgram
     {
         public readonly BlockAction BlockAction;
         public readonly Func<IMyTerminalBlock, bool> BlockCondition;
@@ -146,16 +127,16 @@ namespace BasicInventory
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
-    public class MainScriptProgram : ScriptBase
+    public class MainScriptProgram : ScriptProgram
     {
-        public readonly List<ScriptBase> ScriptPrograms;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptPrograms = new List<ScriptBase>(); }
+        public readonly List<ScriptProgram> ScriptActions;
+        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); }
 
-        public void Add(ScriptBase action) { ScriptPrograms.Add(action); }
+        public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
         protected override void OnMain(string param = "")
         {
-            ScriptPrograms
+            ScriptActions
                 .Where(x => string.IsNullOrEmpty(param) || x.Name == param)
                 .ForEach(x => x.Main(param));
         }
@@ -165,61 +146,42 @@ namespace BasicInventory
         {
             var ret = "{" + base.ToString();
             ret += ",\n childs:{";
-            Ext.ForEach(ScriptPrograms, action => { ret += action.ToString() + ",\n"; });
+            Ext.ForEach(ScriptActions
+, action => { ret += action.ToString() + ",\n"; });
             ret += "}}\n";
 
             return ret;
         }
     }
 
-    public class LambdaScriptProgram<IT, OT> : ScriptProgram<IT, OT>
+    public class LambdaScriptAction : ScriptProgram
     {
-        protected Func<string,IT,OT> Lambda;
+        protected Action<string> Lambda;
 
-        public LambdaScriptProgram(MyGridProgram env, string name, Func<string, IT, OT> lambda) : base(env, name) { Lambda = lambda; }
+        public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda; }
 
         protected override void OnMain(string param = "")
         {
-            if (Lambda != null) Result = Lambda(param, Input);
+            if (Lambda != null) Lambda(param);
         }
     }
 
-    public abstract class ScriptProgram<IT, OT>: ScriptBase
-    {
-        public ScriptProgram(MyGridProgram env, string name) : base(env, name){}
-
-        //these could be classes of their own, but I am a bit afraid that i get problems with generics
-        public OT Result { get; protected set; }
-        public IT Input { get; set; }
-        private string InputToString() => (Input != null ? " ," + Input.ToString() : "");
-        private string ResultToString() => (Result != null ? " ," + Result.ToString() : "");
-
-        protected override void OnMainStart(string param = "") {
-            base.OnMainStart(param);
-            Env.Echo("{" + InputToString() +"}");
-        }
-        protected override void OnMainEnd() {
-            base.OnMainStart();
-            Env.Echo("{" + ResultToString() + "}");
-        }
-    }
-
-    public abstract class ScriptBase
+    public abstract class ScriptProgram
     {
         public MyGridProgram Env { get; private set; }
         public readonly string Name; //here name is id because this is used in game that way
 
-        public ScriptBase(MyGridProgram env, string name) { Env = env; Name = name; }
+        public ScriptProgram(MyGridProgram env, string name) { Env = env; Name = name; }
+
         public override string ToString() { return "N:" + Name; }
+
         public void Main(string param = "")
         {
             param = string.IsNullOrEmpty(param) ? "" : param;
-            OnMainStart();
+            Env.Echo("executing: " + Name + "(" + param + ")");
             OnMain(param);
-            OnMainEnd();
         }
-        protected virtual void OnMainStart(string param = "") { Env.Echo("executing: " + Name + "(" + param + ")"); }
-        protected virtual void OnMainEnd() { Env.Echo("executed:" + Name); }
+
         protected abstract void OnMain(string param = "");
     }
     #endregion
@@ -261,16 +223,16 @@ namespace BasicInventory
         #region linq substitutes
         //linq substitutes without templates nor static extensions
         //static extensions and templates are not supportet it seems
-        public static void ForEach(this IEnumerable<ScriptBase> source, Action<ScriptBase> action)
+        public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
         { foreach (var x in source) { if (action != null) action(x); } }
 
-        public static IEnumerable<ScriptBase> Where(this IEnumerable<ScriptBase> source, Func<ScriptBase, bool> condition)
+        public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
         {
-            var ret = new List<ScriptBase>();
+            var ret = new List<ScriptProgram>();
             source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
@@ -319,7 +281,6 @@ namespace BasicInventory
         public static bool IsSorter(this IMyTerminalBlock x) { return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x) { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
-        public static bool IsOxygenTank(this IMyTerminalBlock x) { return x is IMyOxygenTank; }
         #endregion
         #endregion
 
