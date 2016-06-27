@@ -154,25 +154,54 @@ namespace ActionSystemIOAsEvents
         }
     }
     
-    public class OutputArgs<TDataType>
+    public class OutputArgs<TDataType>: OutputArgsBase
+    {        
+        public readonly TDataType Value;        
+        public OutputArgs(ScriptProgram sender, string param, TDataType value):base(sender,param)  { Value = value; }
+    }
+
+    public class OutputArgsBase
     {
         public readonly string Param;
-        public readonly TDataType Value;
         public readonly ScriptProgram Sender;
-        public OutputArgs( string param, TDataType value, ScriptProgram sender)  { Param = param; Value = value; Sender = sender;   }
+        public OutputArgsBase( ScriptProgram sender, string param) { Param = param; Sender = sender; }
     }
-    public delegate void ValueChanged<TDataType>(OutputArgs<TDataType> Value);
+
+    public class Connection
+    {
+        public ScriptProgram Receiver;
+        public Action<OutputArgsBase> Update;
+    }
 
     public class IONode<TDataType>
     {
+        private List<Connection> Connections;
+        protected TDataType CurrentValue;
         public readonly string Name;
-        public event ValueChanged<TDataType> ValueChanged;  
-        public void RaiseValueChanged(string param, TDataType value, ScriptProgram sender)
+        public IONode(string name)
         {
-            if (ValueChanged == null) return;
-            ValueChanged(new OutputArgs<TDataType>(param, value, sender));
+            Name = name;
+            Connections = new List<Connection>();
         }
-        public IONode(string name) { Name = name; }
+
+        public void RaiseValueChanged(ScriptProgram sender, string param, TDataType value)
+        {
+            foreach(var connection in Connections)
+            {
+                connection.Update( new OutputArgs<TDataType>(sender,param,value));
+            }
+        }
+
+        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgs<TDataType>> listener)
+        {
+            if (receiver == null || listener == null) return;
+            Connections.Add(
+                new Connection(){
+                    Receiver = receiver,
+                    Update = args => listener((OutputArgs<TDataType>)args)
+                });
+        }
+        
     }
 
 
