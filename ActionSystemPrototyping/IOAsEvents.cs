@@ -153,10 +153,32 @@ namespace ActionSystemIOAsEvents
             return ret;
         }
     }
+    
+    public class OutputArgs<TDataType>
+    {
+        public readonly string Param;
+        public readonly TDataType Value;
+        public readonly ScriptProgram Sender;
+        public OutputArgs( string param, TDataType value, ScriptProgram sender)  { Param = param; Value = value; Sender = sender;   }
+    }
+    public delegate void ValueChanged<TDataType>(OutputArgs<TDataType> Value);
+
+    public class IONode<TDataType>
+    {
+        public readonly string Name;
+        public event ValueChanged<TDataType> ValueChanged;  
+        public void RaiseValueChanged(string param, TDataType value, ScriptProgram sender)
+        {
+            if (ValueChanged == null) return;
+            ValueChanged(new OutputArgs<TDataType>(param, value, sender));
+        }
+        public IONode(string name) { Name = name; }
+    }
+
 
     public class LambdaScriptAction : ScriptProgram
     {
-        protected Action<string> Lambda;
+        protected readonly Action<string> Lambda;
 
         public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda; }
 
