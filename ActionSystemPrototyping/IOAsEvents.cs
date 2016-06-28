@@ -43,21 +43,16 @@ namespace ActionSystemIOAsEvents
             return main;
         }
         #endregion
-
-
         #region script entry points.
-
         public void Main(string eventName)
         {
             var main = Initialize();
             main.Main(eventName);
         }
-
         #endregion
     }
 
     #region block and group related program definitions
-
     public class GroupProgram : BlockProgram
     {
         public string GroupName { get; private set; }
@@ -92,7 +87,6 @@ namespace ActionSystemIOAsEvents
         }
     }
 
-
     public class BlockProgram : ScriptProgram
     {
         public readonly BlockAction BlockAction;
@@ -118,19 +112,18 @@ namespace ActionSystemIOAsEvents
                 (BlockCondition != null ? ", BC:" + BlockCondition.GetType().Name : "");
         }
     }
-
     #endregion
 
     #region programs
-
     /// <summary>
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
     public class MainScriptProgram : ScriptProgram
     {
-        public readonly List<ScriptProgram> ScriptActions;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); }
+        protected readonly List<ScriptProgram> ScriptActions;
+        protected readonly List<IONodeBase> IONodes;
+        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONodeBase>();}
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
@@ -144,16 +137,23 @@ namespace ActionSystemIOAsEvents
         //no serializers of any kind available
         public override string ToString()
         {
-            var ret = "{" + base.ToString();
-            ret += ",\n childs:{";
-            Ext.ForEach(ScriptActions
-, action => { ret += action.ToString() + ",\n"; });
-            ret += "}}\n";
+            var ret = "{" + base.ToString() + ",\n";
+
+            ret += "childs:{";
+            Ext.ForEach(ScriptActions, item => { ret += item.ToString() + ",\n"; });
+            ret += "},\n";
+
+            ret += "IONodes:{";
+            Ext.ForEach(IONodes, item => { ret += item.ToString() + ",\n"; });
+            ret += "}\n";
+
+            ret += "}\n";
 
             return ret;
         }
     }
-    
+
+    #region program input and output
     public class OutputArgs<TDataType>: OutputArgsBase
     {        
         public readonly TDataType Value;        
@@ -171,25 +171,20 @@ namespace ActionSystemIOAsEvents
     {
         public ScriptProgram Receiver;
         public Action<OutputArgsBase> Update;
+        public override string ToString() { return "{R:" + Receiver.Name + "}"; }
     }
 
-    public class IONode<TDataType>
+    public class IONode<TDataType>:IONodeBase
     {
-        private List<Connection> Connections;
         protected TDataType CurrentValue;
-        public readonly string Name;
-        public IONode(string name)
-        {
-            Name = name;
-            Connections = new List<Connection>();
-        }
+
+        public IONode(string name) : base(name) { }
 
         public void RaiseValueChanged(ScriptProgram sender, string param, TDataType value)
         {
-            foreach(var connection in Connections)
-            {
-                connection.Update( new OutputArgs<TDataType>(sender,param,value));
-            }
+            Connections.ForEach(connection =>
+            { connection.Update(new OutputArgs<TDataType>(sender, param, value)); }
+            );
         }
 
         public void RegisterHandler(ScriptProgram receiver, Action<OutputArgs<TDataType>> listener)
@@ -201,9 +196,24 @@ namespace ActionSystemIOAsEvents
                     Update = args => listener((OutputArgs<TDataType>)args)
                 });
         }
-        
     }
 
+    public class IONodeBase
+    {
+        public readonly string Name;
+        protected List<Connection> Connections;
+        public IONodeBase(string name){ Name = name; Connections = new List<Connection>();}
+
+        public override string ToString()
+        {
+            var ret = "{N:" + Name + ", targets:{";
+            Connections.ForEach(c => { ret += c.ToString()+", "; });
+            ret += "}\n";
+            return ret;
+        }
+    }
+
+    #endregion
 
     public class LambdaScriptAction : ScriptProgram
     {
