@@ -124,8 +124,8 @@ namespace ActionSystemIOAsEvents
     public class MainScriptProgram : ScriptProgram
     {
         protected readonly ICollection<ScriptProgram> ScriptActions;
-        protected readonly ICollection<IONodeBase> IONodes;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONodeBase>(); }
+        protected readonly ICollection<IONode> IONodes;
+        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONode>(); }
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
@@ -156,55 +156,66 @@ namespace ActionSystemIOAsEvents
     }
 
     #region program input and output 
-    public class OutputArgs<TDataType> : OutputArgsBase where TDataType : class
+    #region type spesific io overloads
+    public class OutputArgsString : OutputArgs
     {
-        private readonly object _value;
-        public OutputArgs(ScriptProgram sender, string param, TDataType value) : base(sender, param) { _value = value; }
-        public TDataType Value { get { return (TDataType)_value; } }
+        public readonly string Value;
+        public OutputArgsString(ScriptProgram sender, string param, string value) : base(sender, param) { Value = value; }
     }
-
-    public class OutputArgsBase
+    public class OutputArgsFloat: OutputArgs
+    {
+        public readonly float Value;
+        public OutputArgsFloat(ScriptProgram sender, string param, float value): base(sender,param) { Value = value; }
+    }
+    public class FloatIONode : IONode
+    {
+        public FloatIONode(string name) : base(name) { }
+        public void RaiseValueChanged(OutputArgsFloat args) { base.RaiseValueChanged(args); }
+        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgsFloat> listener) { base.RegisterHandler(receiver, args => listener((OutputArgsFloat)args)); }
+    }
+    public class StringIONode : IONode
+    {
+        public StringIONode(string name) : base(name) { }
+        public void RaiseValueChanged(OutputArgsString args) { base.RaiseValueChanged(args); }
+        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgsString> listener) { base.RegisterHandler(receiver, args => listener((OutputArgsString)args)); }
+    }
+    #endregion
+    #region generic io
+    public abstract class OutputArgs
     {
         public readonly string Param;
         public readonly ScriptProgram Sender;
-        public OutputArgsBase(ScriptProgram sender, string param) { Param = param; Sender = sender; }
+        public OutputArgs(ScriptProgram sender, string param) { Param = param; Sender = sender; }
     }
-
     public class Connection
     {
         public ScriptProgram Receiver;
-        public Action<OutputArgsBase> Update;
+        public Action<OutputArgs> Update;
         public override string ToString() { return "{R:" + Receiver.Name + "}"; }
     }
-
-    public class IONode<TDataType> : IONodeBase where TDataType : class
+    public abstract class IONode
     {
-        public IONode(string name) : base(name) { }
+        public readonly string Name;
+        protected ICollection<Connection> Connections;
+        public IONode(string name) { Name = name; Connections = new List<Connection>(); }
 
-        public void RaiseValueChanged(ScriptProgram sender, string param, TDataType value)
+        protected void RaiseValueChanged(OutputArgs args)
         {
             Connections.ForEach(connection =>
-            { connection.Update(new OutputArgs<TDataType>(sender, param, value)); }
+            { connection.Update(args); }
             );
         }
 
-        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgs<TDataType>> listener)
+        protected void RegisterHandler(ScriptProgram receiver, Action<OutputArgs> listener)
         {
             if (receiver == null || listener == null) return;
             Connections.Add(
                 new Connection()
                 {
                     Receiver = receiver,
-                    Update = args => listener((OutputArgs<TDataType>)args)
+                    Update = args => listener(args)
                 });
         }
-    }
-
-    public class IONodeBase
-    {
-        public readonly string Name;
-        protected ICollection<Connection> Connections;
-        public IONodeBase(string name) { Name = name; Connections = new List<Connection>(); }
 
         public override string ToString()
         {
@@ -214,9 +225,8 @@ namespace ActionSystemIOAsEvents
             return ret2;
         }
     }
-
     #endregion
-
+    #endregion
     public class LambdaScriptAction : ScriptProgram
     {
         protected readonly Action<string> Lambda;
@@ -294,7 +304,7 @@ namespace ActionSystemIOAsEvents
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEach(this IEnumerable<Connection> source, Action<Connection> action)
         { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEach(this IEnumerable<IONodeBase> source, Action<IONodeBase> action)
+        public static void ForEach(this IEnumerable<IONode> source, Action<IONode> action)
         { foreach (var x in source) { if (action != null) action(x); } }
 
         public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
