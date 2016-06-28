@@ -19,9 +19,9 @@ namespace ActionSystemIOAsEvents
     public class Program : MyGridProgram
     {
 
-        #region copymeto programmable block 
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs
-        #region implementations with block or group names
+        #region copymeto programmable block  
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs 
+        #region implementations with block or group names 
         const string LCD_OUT_NAME = "outPanel";
 
         public ScriptProgram Initialize()
@@ -45,7 +45,7 @@ namespace ActionSystemIOAsEvents
             return main;
         }
         #endregion
-        #region script entry points.
+        #region script entry points. 
         public void Main(string eventName)
         {
             var main = Initialize();
@@ -54,7 +54,7 @@ namespace ActionSystemIOAsEvents
         #endregion
     }
 
-    #region block and group related program definitions
+    #region block and group related program definitions 
     public class GroupProgram : BlockProgram
     {
         public string GroupName { get; private set; }
@@ -116,16 +116,16 @@ namespace ActionSystemIOAsEvents
     }
     #endregion
 
-    #region programs
-    /// <summary>
-    /// wraps actions into a tree like stucture. 
-    /// actions are implemented as delegates, because some methods can be only called 
-    /// </summary>
+    #region programs 
+    /// <summary> 
+    /// wraps actions into a tree like stucture.  
+    /// actions are implemented as delegates, because some methods can be only called  
+    /// </summary> 
     public class MainScriptProgram : ScriptProgram
     {
         protected readonly ICollection<ScriptProgram> ScriptActions;
         protected readonly ICollection<IONodeBase> IONodes;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONodeBase>();}
+        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONodeBase>(); }
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
@@ -136,7 +136,7 @@ namespace ActionSystemIOAsEvents
                 .ForEach(x => x.Main(param));
         }
 
-        //no serializers of any kind available
+        //no serializers of any kind available 
         public override string ToString()
         {
             var ret = "{" + base.ToString() + ",\n";
@@ -155,11 +155,11 @@ namespace ActionSystemIOAsEvents
         }
     }
 
-    #region program input and output
-    public class OutputArgs<TDataType>: OutputArgsBase where TDataType: class
-    {        
-        private readonly object _value;        
-        public OutputArgs(ScriptProgram sender, string param, TDataType value):base(sender,param)  { _value = value; }
+    #region program input and output 
+    public class OutputArgs<TDataType> : OutputArgsBase where TDataType : class
+    {
+        private readonly object _value;
+        public OutputArgs(ScriptProgram sender, string param, TDataType value) : base(sender, param) { _value = value; }
         public TDataType Value { get { return (TDataType)_value; } }
     }
 
@@ -167,7 +167,7 @@ namespace ActionSystemIOAsEvents
     {
         public readonly string Param;
         public readonly ScriptProgram Sender;
-        public OutputArgsBase( ScriptProgram sender, string param) { Param = param; Sender = sender; }
+        public OutputArgsBase(ScriptProgram sender, string param) { Param = param; Sender = sender; }
     }
 
     public class Connection
@@ -177,7 +177,7 @@ namespace ActionSystemIOAsEvents
         public override string ToString() { return "{R:" + Receiver.Name + "}"; }
     }
 
-    public class IONode<TDataType>:IONodeBase where TDataType : class
+    public class IONode<TDataType> : IONodeBase where TDataType : class
     {
         public IONode(string name) : base(name) { }
 
@@ -192,7 +192,8 @@ namespace ActionSystemIOAsEvents
         {
             if (receiver == null || listener == null) return;
             Connections.Add(
-                new Connection(){
+                new Connection()
+                {
                     Receiver = receiver,
                     Update = args => listener((OutputArgs<TDataType>)args)
                 });
@@ -203,14 +204,14 @@ namespace ActionSystemIOAsEvents
     {
         public readonly string Name;
         protected ICollection<Connection> Connections;
-        public IONodeBase(string name){ Name = name; Connections = new List<Connection>();}
+        public IONodeBase(string name) { Name = name; Connections = new List<Connection>(); }
 
         public override string ToString()
         {
-            var ret = "{N:" + Name + ", targets:{";
-            Connections.ForEach(c => { ret += c.ToString()+", "; });
-            ret += "}\n";
-            return ret;
+            var ret2 = "{N:" + Name + ", targets:{";
+            Connections.ForEach(c => { ret2 += c.ToString() + ", "; });
+            ret2 += "}\n";
+            return ret2;
         }
     }
 
@@ -231,7 +232,7 @@ namespace ActionSystemIOAsEvents
     public abstract class ScriptProgram
     {
         public MyGridProgram Env { get; private set; }
-        public readonly string Name; //here name is id because this is used in game that way
+        public readonly string Name; //here name is id because this is used in game that way 
 
         public ScriptProgram(MyGridProgram env, string name) { Env = env; Name = name; }
 
@@ -248,7 +249,7 @@ namespace ActionSystemIOAsEvents
     }
     #endregion
 
-    #region actions for blocks
+    #region actions for blocks 
 
     public class WriteTextOnLcd : BlockAction
     {
@@ -282,9 +283,9 @@ namespace ActionSystemIOAsEvents
 
     public static class Ext
     {
-        #region linq substitutes
-        //linq substitutes without templates nor static extensions
-        //static extensions and templates are not supportet it seems
+        #region linq substitutes 
+        //linq substitutes without templates nor static extensions 
+        //static extensions and templates are not supportet it seems 
         public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
         { foreach (var x in source) { if (action != null) action(x); } }
         public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
@@ -315,7 +316,7 @@ namespace ActionSystemIOAsEvents
             return ret;
         }
         #endregion
-        #region basic operations
+        #region basic operations 
         public static void ApplyTerminalAction(this IMyTerminalBlock block, string actionName)
         {
             block.GetActionWithName(actionName).Apply(block);
@@ -343,7 +344,7 @@ namespace ActionSystemIOAsEvents
         #endregion
         public static Func<IMyTerminalBlock, bool> ReplaceNullCondition(Func<IMyTerminalBlock, bool> x) { return x != null ? x : _ => true; }
         public static Func<IMyBlockGroup, bool> ReplaceNullCondition(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
-        #region basic tests to use with Where
+        #region basic tests to use with Where 
         public static bool IsSorter(this IMyTerminalBlock x) { return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x) { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
