@@ -14,7 +14,7 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using SpaceEngineersScripts;
 using static ActionSystem.Program;
 
-namespace ActionSystemIOAsEvents
+namespace PlainActionSystem
 {
     public class Program : MyGridProgram
     {
@@ -26,14 +26,14 @@ namespace ActionSystemIOAsEvents
 
         public ScriptProgram Initialize()
         {
-            var main = new MainScriptProgram(this, name: "Main");
+            var main = new MainScriptProgram(this,name: "Main");
 
-            var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
+            var helloAction = new LambdaScriptAction(this, name: "helloTerminal", 
                 lambda: param => { Echo("Hello Terminal"); });
             main.Add(helloAction);
-            var helloLcd = new NamedBlockProgram(
-                this, name: "helloLcd", blockName: LCD_OUT_NAME,
-                blockAction: new WriteTextOnLcd(() => "Hello lcd!"));
+            var helloLcd = new NamedBlockProgram( 
+                this, name: "helloLcd", blockName: LCD_OUT_NAME, 
+                blockAction:new WriteTextOnLcd( () => "Hello lcd!"));
             main.Add(helloLcd);
             var showActions = new NamedBlockProgram(
                 this, name: "listActions", blockName: LCD_OUT_NAME,
@@ -50,7 +50,7 @@ namespace ActionSystemIOAsEvents
         public void Main(string eventName)
         {
             var main = Initialize();
-            main.Main(eventName);
+            main.Main( eventName);
         }
 
         #endregion
@@ -61,14 +61,14 @@ namespace ActionSystemIOAsEvents
     public class GroupProgram : BlockProgram
     {
         public string GroupName { get; private set; }
-        public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition) :
+        public GroupProgram(MyGridProgram env, string name, string group, BlockAction blockAction, Func<IMyTerminalBlock, bool> blockCondition ) : 
             base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
         { GroupName = group; }
         public override string ToString() { return base.ToString() + ", G:" + GroupName; }
         protected override void OnMain(string param = "")
         {
             Ext.ForEach(Env.GetBlocks(groupCondition: g => g.Name == GroupName, blockCondition: BlockCondition)
-, BlockAction.Execute);
+, BlockAction.Execute);                
         }
     }
 
@@ -77,21 +77,21 @@ namespace ActionSystemIOAsEvents
         public string BlockName { get; private set; }
 
         public NamedBlockProgram(
-            MyGridProgram env,
+            MyGridProgram env,            
             string name, string blockName, BlockAction blockAction,
-            Func<IMyTerminalBlock, bool> blockCondition = null) :
+            Func<IMyTerminalBlock, bool> blockCondition = null) : 
             base(env, name: name, blockAction: blockAction, blockCondition: blockCondition)
         { BlockName = blockName; }
 
         public override string ToString()
-        { return base.ToString() + ", B:" + BlockName; }
+        { return base.ToString() + ", B:" + BlockName;  }
 
         protected override void OnMain(string param = "")
         {
-            Env.ForNamedBlockIfApply(blockName: BlockName, blockCondition: BlockCondition, action: BlockAction);
+            Env.ForNamedBlockIfApply(blockName: BlockName, blockCondition: BlockCondition, action:BlockAction);
         }
     }
-
+   
 
     public class BlockProgram : ScriptProgram
     {
@@ -104,7 +104,7 @@ namespace ActionSystemIOAsEvents
             BlockCondition = blockCondition;
             GroupCondition = groupCondition;
         }
-
+      
         protected override void OnMain(string param = "")
         {
             Ext.ForEach(Env.GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
@@ -120,17 +120,17 @@ namespace ActionSystemIOAsEvents
     }
 
     #endregion
-
+    
     #region programs
 
     /// <summary>
     /// wraps actions into a tree like stucture. 
     /// actions are implemented as delegates, because some methods can be only called 
     /// </summary>
-    public class MainScriptProgram : ScriptProgram
+    public class MainScriptProgram: ScriptProgram
     {
         public readonly List<ScriptProgram> ScriptActions;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); }
+        public MainScriptProgram(MyGridProgram env, string name ): base(env, name) { ScriptActions = new List<ScriptProgram>(); }
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
 
@@ -143,7 +143,7 @@ namespace ActionSystemIOAsEvents
 
         //no serializers of any kind available
         public override string ToString()
-        {
+        {          
             var ret = "{" + base.ToString();
             ret += ",\n childs:{";
             Ext.ForEach(ScriptActions
@@ -153,63 +153,12 @@ namespace ActionSystemIOAsEvents
             return ret;
         }
     }
-    
-    public class OutputArgs<TDataType>: OutputArgsBase
-    {        
-        public readonly TDataType Value;        
-        public OutputArgs(ScriptProgram sender, string param, TDataType value):base(sender,param)  { Value = value; }
-    }
-
-    public class OutputArgsBase
-    {
-        public readonly string Param;
-        public readonly ScriptProgram Sender;
-        public OutputArgsBase( ScriptProgram sender, string param) { Param = param; Sender = sender; }
-    }
-
-    public class Connection
-    {
-        public ScriptProgram Receiver;
-        public Action<OutputArgsBase> Update;
-    }
-
-    public class IONode<TDataType>
-    {
-        private List<Connection> Connections;
-        protected TDataType CurrentValue;
-        public readonly string Name;
-        public IONode(string name)
-        {
-            Name = name;
-            Connections = new List<Connection>();
-        }
-
-        public void RaiseValueChanged(ScriptProgram sender, string param, TDataType value)
-        {
-            foreach(var connection in Connections)
-            {
-                connection.Update( new OutputArgs<TDataType>(sender,param,value));
-            }
-        }
-
-        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgs<TDataType>> listener)
-        {
-            if (receiver == null || listener == null) return;
-            Connections.Add(
-                new Connection(){
-                    Receiver = receiver,
-                    Update = args => listener((OutputArgs<TDataType>)args)
-                });
-        }
-        
-    }
-
 
     public class LambdaScriptAction : ScriptProgram
     {
-        protected readonly Action<string> Lambda;
+        protected Action<string> Lambda;
 
-        public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda; }
+        public LambdaScriptAction(MyGridProgram env, string name, Action<string> lambda) : base(env, name) { Lambda = lambda;}
 
         protected override void OnMain(string param = "")
         {
@@ -273,8 +222,12 @@ namespace ActionSystemIOAsEvents
     {
         #region linq substitutes
         //linq substitutes without templates nor static extensions
-        //static extensions and templates are not supportet (for List<> ) it seems
-        public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
+        //static extensions and templates are not supportet it seems
+        public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
+        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
         { foreach (var x in source) { if (action != null) action(x); } }
 
         public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
@@ -313,20 +266,20 @@ namespace ActionSystemIOAsEvents
                 .ForEach(b => blocksConv.Add(b));
             return blocksConv;
         }
-
+        
         public static void ForNamedBlockIfApply(this MyGridProgram This, string blockName, BlockAction action, Func<IMyTerminalBlock, bool> blockCondition = null)
         {
             var block = This.GridTerminalSystem.GetBlockWithName(blockName);
             if (block != null && (ReplaceNullCondition(blockCondition)(block)) && action != null)
                 action.Execute(block);
         }
-
+        
         #endregion
-        public static Func<IMyTerminalBlock, bool> ReplaceNullCondition(Func<IMyTerminalBlock, bool> x) { return x != null ? x : _ => true; }
+        public static Func<IMyTerminalBlock, bool> ReplaceNullCondition(Func<IMyTerminalBlock, bool> x){ return x!=null? x : _ => true; }
         public static Func<IMyBlockGroup, bool> ReplaceNullCondition(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
         #region basic tests to use with Where
-        public static bool IsSorter(this IMyTerminalBlock x) { return x is IMyConveyorSorter; }
-        public static bool IsTimer(this IMyTerminalBlock x) { return x is IMyTimerBlock; }
+        public static bool IsSorter(this IMyTerminalBlock x)       {return x is IMyConveyorSorter; }
+        public static bool IsTimer(this IMyTerminalBlock x)        { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
         #endregion
         #endregion
@@ -334,3 +287,4 @@ namespace ActionSystemIOAsEvents
     } // Omit this last closing brace as the game will add it back in
 
 }
+

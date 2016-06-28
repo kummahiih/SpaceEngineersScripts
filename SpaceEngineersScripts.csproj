@@ -104,6 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActionSystem.cs" />
+    <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
