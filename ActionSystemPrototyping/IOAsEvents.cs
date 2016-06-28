@@ -26,6 +26,7 @@ namespace ActionSystemIOAsEvents
 
         public ScriptProgram Initialize()
         {
+            Echo("initializing");
             var main = new MainScriptProgram(this, name: "Main");
 
             var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
@@ -40,6 +41,7 @@ namespace ActionSystemIOAsEvents
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
 
+            Echo("initializing done");
             return main;
         }
         #endregion
@@ -121,8 +123,8 @@ namespace ActionSystemIOAsEvents
     /// </summary>
     public class MainScriptProgram : ScriptProgram
     {
-        protected readonly List<ScriptProgram> ScriptActions;
-        protected readonly List<IONodeBase> IONodes;
+        protected readonly ICollection<ScriptProgram> ScriptActions;
+        protected readonly ICollection<IONodeBase> IONodes;
         public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONodeBase>();}
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
@@ -154,10 +156,11 @@ namespace ActionSystemIOAsEvents
     }
 
     #region program input and output
-    public class OutputArgs<TDataType>: OutputArgsBase
+    public class OutputArgs<TDataType>: OutputArgsBase where TDataType: class
     {        
-        public readonly TDataType Value;        
-        public OutputArgs(ScriptProgram sender, string param, TDataType value):base(sender,param)  { Value = value; }
+        private readonly object _value;        
+        public OutputArgs(ScriptProgram sender, string param, TDataType value):base(sender,param)  { _value = value; }
+        public TDataType Value { get { return (TDataType)_value; } }
     }
 
     public class OutputArgsBase
@@ -174,10 +177,8 @@ namespace ActionSystemIOAsEvents
         public override string ToString() { return "{R:" + Receiver.Name + "}"; }
     }
 
-    public class IONode<TDataType>:IONodeBase
+    public class IONode<TDataType>:IONodeBase where TDataType : class
     {
-        protected TDataType CurrentValue;
-
         public IONode(string name) : base(name) { }
 
         public void RaiseValueChanged(ScriptProgram sender, string param, TDataType value)
@@ -201,7 +202,7 @@ namespace ActionSystemIOAsEvents
     public class IONodeBase
     {
         public readonly string Name;
-        protected List<Connection> Connections;
+        protected ICollection<Connection> Connections;
         public IONodeBase(string name){ Name = name; Connections = new List<Connection>();}
 
         public override string ToString()
