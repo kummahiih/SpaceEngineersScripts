@@ -297,15 +297,15 @@ namespace ActionSystemIOAsEvents
         //linq substitutes without templates nor static extensions 
         //static extensions and templates are not supportet it seems 
         public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
         public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
         public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
         public static void ForEach(this IEnumerable<Connection> source, Action<Connection> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
         public static void ForEach(this IEnumerable<IONode> source, Action<IONode> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
 
         public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
         {
