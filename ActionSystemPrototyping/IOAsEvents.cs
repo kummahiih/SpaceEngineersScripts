@@ -41,6 +41,8 @@ namespace ActionSystemIOAsEvents
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
 
+
+
             Echo("initializing done");
             return main;
         }
@@ -128,6 +130,7 @@ namespace ActionSystemIOAsEvents
         public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONode>(); }
 
         public void Add(ScriptProgram action) { ScriptActions.Add(action); }
+        public void Add(IONode node) { IONodes.Add(node); }
 
         protected override void OnMain(string param = "")
         {
