@@ -221,28 +221,12 @@ namespace ActionSystem
         #region linq substitutes
         //linq substitutes without templates nor static extensions
         //static extensions and templates are not supportet it seems
-        public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
-        public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
-        { foreach (var x in source) { if (action != null) action(x); } }
+        public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
+        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
 
-        public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
+        public static IEnumerable<T> Where<T>(this IEnumerable<T> source, Func<T, bool> condition)
         {
-            var ret = new List<ScriptProgram>();
-            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyTerminalBlock> Where(this IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
-        {
-            var ret = new List<IMyTerminalBlock>();
-            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyBlockGroup> Where(this IEnumerable<IMyBlockGroup> source, Func<IMyBlockGroup, bool> condition)
-        {
-            var ret = new List<IMyBlockGroup>();
+            var ret = new List<T>();
             source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }

@@ -16,6 +16,7 @@ using SpaceEngineersScripts;
 using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI;
 
+
 namespace IOAsMainRecursion
 {
     public class Program : MyGridProgram
@@ -68,8 +69,8 @@ namespace IOAsMainRecursion
         public override string ToString() { return base.ToString() + ", G:" + GroupName; }
         protected override void OnMain(string param = "")
         {
-            Ext.ForEach(Env.GetBlocks(groupCondition: g => g.Name == GroupName, blockCondition: BlockCondition)
-, BlockAction.Execute);
+            Env.GetBlocks(groupCondition: g => g.Name == GroupName, blockCondition: BlockCondition)
+                .ForEach(BlockAction.Execute);
         }
     }
 
@@ -107,8 +108,9 @@ namespace IOAsMainRecursion
 
         protected override void OnMain(string param = "")
         {
-            Ext.ForEach(Env.GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
-, BlockAction.Execute);
+            Env
+                .GetBlocks(groupCondition: GroupCondition, blockCondition: BlockCondition)
+                .ForEach(BlockAction.Execute);
         }
 
         public override string ToString()
@@ -147,11 +149,11 @@ namespace IOAsMainRecursion
             var ret = "{" + base.ToString() + ",\n";
 
             ret += "childs:{";
-            Ext.ForEach(ScriptActions, item => { ret += item.ToString() + ",\n"; });
+            ScriptActions.ForEach( item => { ret += item.ToString() + ",\n"; });
             ret += "},\n";
 
             ret += "IONodes:{";
-            Ext.ForEach(IONodes, item => { ret += item.ToString() + ",\n"; });
+            IONodes.ForEach( item => { ret += item.ToString() + ",\n"; });
             ret += "}\n";
 
             ret += "}\n";
@@ -282,38 +284,17 @@ namespace IOAsMainRecursion
     }
 
     #endregion
-
     public static class Ext
     {
         #region linq substitutes 
-        //linq substitutes without templates nor static extensions 
+        //linq substitutes because can not write 'using System.Linq;'
         //static extensions and templates are not supportet it seems 
-        public static void ForEach(this IEnumerable<ScriptProgram> source, Action<ScriptProgram> action)
-        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
-        public static void ForEach(this IEnumerable<IMyTerminalBlock> source, Action<IMyTerminalBlock> action)
-        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
-        public static void ForEach(this IEnumerable<IMyBlockGroup> source, Action<IMyBlockGroup> action)
-        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
-        public static void ForEach(this IEnumerable<Connection> source, Action<Connection> action)
-        { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
-        public static void ForEach(this IEnumerable<IONode> source, Action<IONode> action)
+        public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
         { if (action == null || source == null) return; foreach (var x in source) { action(x); } }
 
-        public static IEnumerable<ScriptProgram> Where(this IEnumerable<ScriptProgram> source, Func<ScriptProgram, bool> condition)
+        public static IEnumerable<T> Where<T>(this IEnumerable<T> source, Func<T, bool> condition)
         {
-            var ret = new List<ScriptProgram>();
-            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyTerminalBlock> Where(this IEnumerable<IMyTerminalBlock> source, Func<IMyTerminalBlock, bool> condition)
-        {
-            var ret = new List<IMyTerminalBlock>();
-            source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
-            return ret;
-        }
-        public static IEnumerable<IMyBlockGroup> Where(this IEnumerable<IMyBlockGroup> source, Func<IMyBlockGroup, bool> condition)
-        {
-            var ret = new List<IMyBlockGroup>();
+            var ret = new List<T>();
             source.ForEach(x => { if (condition == null || condition(x)) ret.Add(x); });
             return ret;
         }
