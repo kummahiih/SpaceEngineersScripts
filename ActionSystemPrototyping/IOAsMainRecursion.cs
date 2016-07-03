@@ -2,17 +2,19 @@
 using System.Collections.Generic;
 using VRageMath;
 using VRage.Game;
+using System;
+using System.Collections.Generic;
+using VRageMath;
+using VRage.Game;
 using System.Text;
 using Sandbox.ModAPI.Interfaces;
-using Sandbox.ModAPI.Ingame;
 using Sandbox.Game.EntityComponents;
 using VRage.Game.Components;
 using VRage.Collections;
 using VRage.Game.ObjectBuilders.Definitions;
-using VRage.Game.ModAPI.Ingame;
-using SpaceEngineers.Game.ModAPI.Ingame;
 using SpaceEngineersScripts;
-using static ActionSystem.Program;
+using Sandbox.ModAPI.Ingame;
+using SpaceEngineers.Game.ModAPI;
 
 namespace IOAsMainRecursion
 {
@@ -170,18 +172,7 @@ namespace IOAsMainRecursion
         public readonly float Value;
         public OutputArgsFloat(ScriptProgram sender, string param, float value): base(sender,param) { Value = value; }
     }
-    public class FloatIONode : IONode
-    {
-        public FloatIONode(string name) : base(name) { }
-        public void RaiseValueChanged(OutputArgsFloat args) { base.RaiseValueChanged(args); }
-        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgsFloat> listener) { base.RegisterHandler(receiver, args => listener((OutputArgsFloat)args)); }
-    }
-    public class StringIONode : IONode
-    {
-        public StringIONode(string name) : base(name) { }
-        public void RaiseValueChanged(OutputArgsString args) { base.RaiseValueChanged(args); }
-        public void RegisterHandler(ScriptProgram receiver, Action<OutputArgsString> listener) { base.RegisterHandler(receiver, args => listener((OutputArgsString)args)); }
-    }
+
     #endregion
     #region generic io
     public abstract class OutputArgs
@@ -197,25 +188,24 @@ namespace IOAsMainRecursion
     }
     public abstract class IONode: ScriptProgram
     {
-        public readonly string Name;
         protected ICollection<Connection> Connections;
-        public IONode(string name) { Name = name; Connections = new List<Connection>(); }
+        public IONode(MyGridProgram env, string name):base(env, name) { Connections = new List<Connection>(); }
 
         protected void RaiseValueChanged(OutputArgs args)
         {
-            Connections.ForEach(connection =>
+            /*Connections.Where().ForEach(connection =>
             { connection.Update(args); }
-            );
+            );*/
         }
 
-        protected void RegisterHandler(ScriptProgram receiver, Action<OutputArgs> listener)
+        protected void RegisterHandler(ScriptProgram sender, ScriptProgram receiver)
         {
-            if (receiver == null || listener == null) return;
+            if (receiver == null || sender == null) return;
             Connections.Add(
                 new Connection()
                 {
                     Receiver = receiver,
-                    Update = args => listener(args)
+                    Sender = sender
                 });
         }
 
@@ -335,15 +325,21 @@ namespace IOAsMainRecursion
         }
         public static List<IMyTerminalBlock> GetBlocks(this MyGridProgram This, Func<IMyBlockGroup, bool> groupCondition = null, Func<IMyTerminalBlock, bool> blockCondition = null)
         {
-            var blocksConv = new List<IMyTerminalBlock>();
-            var blocks = new List<IMyTerminalBlock>();
+            var blocksCollected = new List<IMyTerminalBlock>();
+            var blocksTemp = new List<IMyTerminalBlock>();
             var groups = new List<IMyBlockGroup>();
             This.GridTerminalSystem.GetBlockGroups(groups);
+
             groups.Where(ReplaceNullCondition(groupCondition))
-                .ForEach(x => blocks.AddRange(x.Blocks));
-            blocks.Where(ReplaceNullCondition(blockCondition))
-                .ForEach(b => blocksConv.Add(b));
-            return blocksConv;
+                .ForEach(
+                g =>
+                {
+                    g.GetBlocks(blocksTemp, ReplaceNullCondition(blockCondition));
+                    blocksCollected.AddRange(blocksTemp);
+                }
+                );
+
+            return blocksCollected;
         }
 
         public static void ForNamedBlockIfApply(this MyGridProgram This, string blockName, BlockAction action, Func<IMyTerminalBlock, bool> blockCondition = null)
