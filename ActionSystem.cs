@@ -97,16 +97,18 @@ see the codes for more details
         #endregion
         #region script entry points. 
 
-        ScriptProgram MainProgram;
-        public Program()
-        {
-            MainProgram = Initialize();
-        }
+        // this mixes everythin up
+        //ScriptProgram MainProgram;
+        //public Program()
+        //{
+        //    MainProgram = Initialize();
+        //}
 
         public void Main(string eventName)
         {
+            var main = Initialize();
             eventName = eventName ?? "eval.usageToEcho";
-            MainProgram.Main(eventName);
+            main.Main(eventName);
         }
         #endregion
     }
@@ -264,7 +266,7 @@ see the codes for more details
             ArgsParser.Parse(param);
 
             Programs
-                .Where(x => string.IsNullOrEmpty(ArgsParser.FirstParam) || x.Name == ArgsParser.FirstParam)
+                .Where(x => x.Name == ArgsParser.FirstParam)
                 .ForEach(x => x.Main(ArgsParser.Rest));
         }
 
