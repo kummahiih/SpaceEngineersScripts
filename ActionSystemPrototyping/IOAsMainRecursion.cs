@@ -43,7 +43,7 @@ namespace IOAsMainRecursion
             main.Add(helloLcd);
             var showActions = new NamedBlockProgram(
                 this, name: "listActions", blockName: LCD_OUT_NAME,
-                blockAction: new WriteTextOnLcd(() => main.ToString()));
+                blockAction: new WriteTextOnLcd(() => "{"+main.ToString() + "}"));
             main.Add(showActions);
 
             var helloSource = new LambdaScriptFunc(this, name: "helloSource", 
@@ -224,10 +224,10 @@ namespace IOAsMainRecursion
         {
             var ret = "{" + base.ToString() + ",\n";
 
-            ret += "childs:{";
-            Programs.ForEach( item => { ret += item.ToString() + ",\n"; });
+            ret += "childs:{\n";
+            Programs.ForEach( item => { ret += "{" +item.ToString() + "},\n"; });
             ret += "},\n";
-            ret += Continuations.ToString();
+
             ret += "}\n";
 
             return ret;
@@ -291,9 +291,8 @@ namespace IOAsMainRecursion
         }
         public override string ToString()
         {
-            var ret2 = "{N:" + Name + ", childs:{";
-            Continuations.ForEach(c => { ret2 += c.ToString() + ", \n"; });
-            ret2 += "}\n";
+            var ret2 = "N:" + Name + ", childs:{\n";
+            Continuations.ForEach(c => { ret2 += "{"+c.ToString() + "}, \n"; });
             ret2 += "}\n";
             return ret2;
         }
