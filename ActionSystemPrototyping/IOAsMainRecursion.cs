@@ -15,7 +15,7 @@ using VRage.Game.ObjectBuilders.Definitions;
 using SpaceEngineersScripts;
 using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI;
-
+using System.Text.RegularExpressions;
 
 namespace IOAsMainRecursion
 {
@@ -30,7 +30,10 @@ namespace IOAsMainRecursion
         public ScriptProgram Initialize()
         {
             Echo("initializing");
-            var main = new MainScriptProgram(this, name: "Main");
+            var parser = new ArgsParser();
+            var continuations = new ContinuationContainer(this, name: "continuations");
+
+            var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);            
 
             var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
                 lambda: param => { Echo("Hello Terminal"); });
@@ -43,8 +46,6 @@ namespace IOAsMainRecursion
                 this, name: "listActions", blockName: LCD_OUT_NAME,
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
-
-
 
             Echo("initializing done");
             return main;
@@ -123,24 +124,61 @@ namespace IOAsMainRecursion
     #endregion
 
     #region programs 
+    public class ArgsParser
+    {
+        public string Args { get; protected set; }= "";
+        public string Name { get; protected set; }= "";
+        public string Rest { get; protected set; } = "";
+        public ArgsParser(){ }
+        public void Parse(string args){Name = Args = (args ?? ""); OnParse();}
+
+        protected virtual void OnParse()
+        {
+            int i = 0;
+            while (i < Args.Length)
+            {
+                var rest = Args.Substring(i);
+                if (rest.StartsWith(".")) { break; }
+                if (rest.StartsWith("\\")) { i += 2; continue; }
+                if (rest.StartsWith(@"\.")) { i += 2; continue; }
+            }
+            if (i < Args.Length) { Name = Args.Substring(0, i); }
+            if (i + 1 < Args.Length) { Rest = Args.Substring(1 + 1); }
+        }
+    }
+
     /// <summary> 
     /// wraps actions into a tree like stucture.  
     /// actions are implemented as delegates, because some methods can be only called  
     /// </summary> 
     public class MainScriptProgram : ScriptProgram
     {
-        protected readonly ICollection<ScriptProgram> ScriptActions;
-        protected readonly ICollection<IONode> IONodes;
-        public MainScriptProgram(MyGridProgram env, string name) : base(env, name) { ScriptActions = new List<ScriptProgram>(); IONodes = new List<IONode>(); }
+        protected readonly HashSet<ScriptProgram> Programs;
+        protected readonly ContinuationContainer Continuations;
+        protected readonly ArgsParser ArgsParser;
 
-        public void Add(ScriptProgram action) { ScriptActions.Add(action); }
-        public void Add(IONode node) { IONodes.Add(node); }
+
+        public MainScriptProgram(MyGridProgram env, string name, ContinuationContainer continuations, ArgsParser argsParser
+            ) : 
+            base(env, name)
+        { Programs = new HashSet<ScriptProgram>(); Continuations = continuations; ArgsParser = argsParser;}
+
+        public void Add(ScriptProgram program)
+        { 
+                Programs.Add(program);
+        }
+        public void Add(Continuation continuation)
+        { Continuations.Register(continuation, Programs);}
 
         protected override void OnMain(string param = "")
         {
-            ScriptActions
-                .Where(x => string.IsNullOrEmpty(param) || x.Name == param)
-                .ForEach(x => x.Main(param));
+            param = param ?? "";
+
+            ArgsParser.Parse(param);
+
+            Programs
+                .Where(x => string.IsNullOrEmpty(param) || x.Name == ArgsParser.Name)
+                .ForEach(x => x.Main(ArgsParser.Rest));
         }
 
         //no serializers of any kind available 
@@ -149,13 +187,9 @@ namespace IOAsMainRecursion
             var ret = "{" + base.ToString() + ",\n";
 
             ret += "childs:{";
-            ScriptActions.ForEach( item => { ret += item.ToString() + ",\n"; });
+            Programs.ForEach( item => { ret += item.ToString() + ",\n"; });
             ret += "},\n";
-
-            ret += "IONodes:{";
-            IONodes.ForEach( item => { ret += item.ToString() + ",\n"; });
-            ret += "}\n";
-
+            ret += Continuations.ToString();
             ret += "}\n";
 
             return ret;
@@ -163,58 +197,61 @@ namespace IOAsMainRecursion
     }
 
     #region program input and output 
-    #region type spesific io overloads
-    public class OutputArgsString : OutputArgs
-    {
-        public readonly string Value;
-        public OutputArgsString(ScriptProgram sender, string param, string value) : base(sender, param) { Value = value; }
-    }
-    public class OutputArgsFloat: OutputArgs
-    {
-        public readonly float Value;
-        public OutputArgsFloat(ScriptProgram sender, string param, float value): base(sender,param) { Value = value; }
-    }
-
-    #endregion
     #region generic io
+
+    public class OutputArgs<T> : OutputArgs
+    {
+        public readonly T Value;
+        public OutputArgs(ScriptProgram sender, ScriptProgram receiver, string param, T value) : base(sender, receiver, param) { Value = value; }
+    }
     public abstract class OutputArgs
     {
         public readonly ScriptProgram Sender;
-        public OutputArgs(ScriptProgram sender, string param) {Sender = sender; }
-    }
-    public class Connection
-    {
         public ScriptProgram Receiver;
-        public ScriptProgram Sender;
-        public override string ToString() { return "{S:"+ Sender.Name+ ", R:" + Receiver.Name + "}"; }
+        public readonly string Param;
+        public OutputArgs(ScriptProgram sender, ScriptProgram receiver, string param) {Sender = sender; Receiver = receiver; Param = param; }
+        public override string ToString() { return "{S:" + Sender.Name + ", R:" + Receiver.Name + ", P:"+ (Param??"") + "}"; }
     }
-    public abstract class IONode: ScriptProgram
+
+    public class Continuation: ScriptProgram
     {
-        protected ICollection<Connection> Connections;
-        public IONode(MyGridProgram env, string name):base(env, name) { Connections = new List<Connection>(); }
+        private Func<string,OutputArgs> Getter;
+        private Action<OutputArgs> Setter;
+        public OutputArgs LatestValue { get; private set; }
+        public Continuation(MyGridProgram env, string name) : base(env, name){}
 
-        protected void RaiseValueChanged(OutputArgs args)
+        protected override void OnMain(string param = ""){  LatestValue = Getter(param); }
+
+        public void Continue() { Setter(LatestValue); }
+    }
+
+    public class ContinuationContainer: ScriptProgram
+    {
+        protected ICollection<Continuation> Continuations;
+        public ContinuationContainer(MyGridProgram env, string name):base(env, name) { Continuations = new List<Continuation>(); }
+      
+        protected override void OnMain(string param = "")
         {
-            /*Connections.Where().ForEach(connection =>
-            { connection.Update(args); }
-            );*/
+            Env.Echo("Getting new values");
+            var cons = Continuations
+                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == param);
+            cons.ForEach(c => c.Main(ScriptProgram.PARAM_ONEVALUATE));
+            Env.Echo("Setting new values");
+            Continuations.ForEach(c => c.Continue());
         }
-
-        protected void RegisterHandler(ScriptProgram sender, ScriptProgram receiver)
-        {
-            if (receiver == null || sender == null) return;
-            Connections.Add(
-                new Connection()
-                {
-                    Receiver = receiver,
-                    Sender = sender
-                });
+        public void Register(Continuation connection, ICollection<ScriptProgram> programs) {
+            if (connection == null || programs == null) return;
+            Env.Echo("Registering: "+ connection.ToString());
+            connection.Main(ScriptProgram.PARAM_REGISTERED);
+            programs.Add(connection.LatestValue.Sender);
+            programs.Add(connection.LatestValue.Receiver);
+            Continuations.Add(connection);
+            Env.Echo("Registered: " + connection.ToString());
         }
-
         public override string ToString()
         {
-            var ret2 = "{N:" + Name + ", targets:{";
-            Connections.ForEach(c => { ret2 += c.ToString() + ", "; });
+            var ret2 = "{N:" + Name + ",{";
+            Continuations.ForEach(c => { ret2 += c.ToString() + ", \n"; });
             ret2 += "}\n";
             return ret2;
         }
@@ -235,6 +272,9 @@ namespace IOAsMainRecursion
 
     public abstract class ScriptProgram
     {
+        public static readonly string PARAM_REGISTERED = "REGISTERED";
+        public static readonly string PARAM_ONEVALUATE = "ONEVALUATE";
+
         public MyGridProgram Env { get; private set; }
         public readonly string Name; //here name is id because this is used in game that way 
 
@@ -242,9 +282,21 @@ namespace IOAsMainRecursion
 
         public override string ToString() { return "N:" + Name; }
 
+        public void Input(OutputArgs args)
+        {
+            if (args == null) return;
+            Env.Echo("input args: " +  "(" + args.ToString() + ")");
+            OnInput(args);
+            Main(args.Param);
+        }
+
+        protected virtual void OnInput(OutputArgs args) { }
+
         public void Main(string param = "")
         {
             param = string.IsNullOrEmpty(param) ? "" : param;
+            
+
             Env.Echo("executing: " + Name + "(" + param + ")");
             OnMain(param);
         }
