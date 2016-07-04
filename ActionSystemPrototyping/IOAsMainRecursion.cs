@@ -181,7 +181,7 @@ namespace IOAsMainRecursion
                 i++;
             }
             if (i < Args.Length) { FirstParam = Args.Substring(0, i); }
-            if (i + 1 < Args.Length) { Rest = Args.Substring(1 + 1); }
+            if (i + 1 < Args.Length) { Rest = Args.Substring(i + 1); }
         }
     }
     
