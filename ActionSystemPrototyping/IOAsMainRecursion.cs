@@ -30,7 +30,9 @@ namespace IOAsMainRecursion
             var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);                     
             Echo("initializing programs");
 
-            var LcdSink = new LcdSink(this, name: "lcdSink", blockName: LCD_OUT_NAME);
+            Echo("initializing sinks");
+            var lcdSink = new LcdSink(this, name: "lcdSink", blockName: LCD_OUT_NAME);
+            var echoSink = new EchoSink(this, name: "echoSink");
 
             Echo("initializing hello worlds");          
 
@@ -51,11 +53,17 @@ namespace IOAsMainRecursion
               lambda: param => new OutputArgs<string>("Hello world"));
             main.Add(helloSource);
 
-            var helloContinuation = new Continuation(this, 
-                name: "helloPipe", 
+            var helloToEcho = new Continuation(this,
+               name: "helloToEcho",
+               getter: helloSource.Getter,
+               setter: echoSink.Input);
+            main.Add(helloToEcho);
+
+            var helloToLcd = new Continuation(this, 
+                name: "helloToLcd", 
                 getter:helloSource.Getter, 
-                setter: LcdSink.Input);
-            main.Add(helloContinuation);
+                setter: lcdSink.Input);
+            main.Add(helloToLcd);
 
             Echo("initialization done");
             return main;
@@ -69,26 +77,34 @@ namespace IOAsMainRecursion
         }
         #endregion
     }
-    public class LcdSink : ScriptProgram
+    public class EchoSink : ScriptProgram
     {
         protected string StrBuf;
-        protected readonly WriteTextOnLcd WriteAction;
 
-        public readonly string BlockName;
-        public LcdSink(MyGridProgram env, string name, string blockName) : base(env, name)
-        {
-            StrBuf = "";
-            BlockName = blockName;
-            WriteAction = new WriteTextOnLcd(() => StrBuf);
-        }
+        public EchoSink(MyGridProgram env, string name) : base(env, name) { StrBuf = ""; }
 
         protected override void OnInput(OutputArgs args)
         {
-            if (args.Param == PARAM_REGISTERED) { StrBuf = ""; return; }
-
+            StrBuf = "";
             var StrArgs = args as OutputArgs<String>;
             if (StrArgs == null) return;
             StrBuf = StrArgs.Value ?? "";
+        }
+
+        protected override void OnMain(string param = "")
+        {
+            Env.Echo(StrBuf);
+        }
+    }
+    public class LcdSink : EchoSink
+    {
+
+        protected readonly WriteTextOnLcd WriteAction;
+        public readonly string BlockName;
+        public LcdSink(MyGridProgram env, string name, string blockName) : base(env, name)
+        {
+            BlockName = blockName;
+            WriteAction = new WriteTextOnLcd(() => StrBuf);
         }
 
         protected override void OnMain(string param = "")
@@ -215,7 +231,7 @@ namespace IOAsMainRecursion
             ArgsParser.Parse(param);
 
             Programs
-                .Where(x => string.IsNullOrEmpty(param) || x.Name == ArgsParser.FirstParam)
+                .Where(x => string.IsNullOrEmpty(ArgsParser.FirstParam) || x.Name == ArgsParser.FirstParam)
                 .ForEach(x => x.Main(ArgsParser.Rest));
         }
 
@@ -272,12 +288,12 @@ namespace IOAsMainRecursion
         protected override void OnMain(string param = "")
         {
             ArgsParser.Parse(param);
-            Env.Echo("Getting new values");
+            Env.Echo("Getting new values for:'"+ ArgsParser.FirstParam +"' with:'"+ ArgsParser.Rest + "'");
             var cons = Continuations
-                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == ArgsParser.FirstParam);
-            cons.ForEach(c => c.Main(param));
+                .Where(c => string.IsNullOrEmpty(ArgsParser.FirstParam) || c?.Name == ArgsParser.FirstParam);
+            cons.ForEach(c => c.Main(ArgsParser.Rest));
             Env.Echo("Setting new values");
-            Continuations.ForEach(c => c.Continue());
+            cons.ForEach(c => c.Continue());
         }
         public void Register(Continuation connection, ICollection<ScriptProgram> programs) {
             if (connection == null || programs == null) return;
@@ -357,6 +373,7 @@ namespace IOAsMainRecursion
             Env.Echo("input args: " +  "(" + args.ToString() + ")");
             args.Receiver = this;
             OnInput(args);
+            if (args.Param == PARAM_REGISTERED) return;
             Main(args.Param);
         }
 
