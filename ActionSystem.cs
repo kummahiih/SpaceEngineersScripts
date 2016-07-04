@@ -18,12 +18,24 @@ namespace ActionSystem
     {
 
         #region copymeto programmable block  
+        //for the most recent version see
         //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs 
         #region implementations with block or group names 
         const string LCD_OUT_NAME = "outPanel";
 
         public ScriptProgram Initialize()
         {
+            var usage = @"
+type programs name to PB's 
+parameter field and run.
+examples:
+'helloTerminal', 
+'listActions' 
+'eval.helloToEcho' or
+'eval.usageToEcho' (prints this)
+see the codes for more details
+";
+
             Echo("initializing program infrastructure");
             var parser = new ArgsParser();
             var continuations = new ContinuationContainer(this, name: "eval", argsParser: parser);
@@ -35,45 +47,66 @@ namespace ActionSystem
             var echoSink = new EchoSink(this, name: "echoSink");
 
             Echo("initializing hello worlds");
+            {
+                var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
+                    lambda: param => { Echo("Hello Terminal"); });
+                main.Add(helloAction);
+                var helloLcd = new NamedBlockProgram(
+                    this, name: "helloLcd", blockName: LCD_OUT_NAME,
+                    blockAction: new WriteTextOnLcd(() => "Hello lcd!"));
+                main.Add(helloLcd);
 
-            var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
-                lambda: param => { Echo("Hello Terminal"); });
-            main.Add(helloAction);
-            var helloLcd = new NamedBlockProgram(
-                this, name: "helloLcd", blockName: LCD_OUT_NAME,
-                blockAction: new WriteTextOnLcd(() => "Hello lcd!"));
-            main.Add(helloLcd);
-            var showActions = new NamedBlockProgram(
-                this, name: "listActions", blockName: LCD_OUT_NAME,
-                blockAction: new WriteTextOnLcd(() => "{" + main.ToString() + "}"));
-            main.Add(showActions);
+                var helloSource = new LambdaScriptFunc(this, name: "helloSource",
+                  argsParser: parser,
+                  lambda: param => new OutputArgs<string>("Hello world"));
+                main.Add(helloSource);
 
-            var helloSource = new LambdaScriptFunc(this, name: "helloSource",
-              argsParser: parser,
-              lambda: param => new OutputArgs<string>("Hello world"));
-            main.Add(helloSource);
+                var helloToEcho = new Continuation(this,
+                   name: "helloToEcho",
+                   getter: helloSource.Getter,
+                   setter: echoSink.Input);
+                main.Add(helloToEcho);
 
-            var helloToEcho = new Continuation(this,
-               name: "helloToEcho",
-               getter: helloSource.Getter,
-               setter: echoSink.Input);
-            main.Add(helloToEcho);
+                var helloToLcd = new Continuation(this,
+                    name: "helloToLcd",
+                    getter: helloSource.Getter,
+                    setter: lcdSink.Input);
+                main.Add(helloToLcd);
+            }
+            Echo("initializing usefull commands");
+            {
+                var usageSource = new LambdaScriptFunc(this, name: "usageSource",
+                  argsParser: parser,
+                  lambda: param => new OutputArgs<string>(usage));
+                main.Add(usageSource);
 
-            var helloToLcd = new Continuation(this,
-                name: "helloToLcd",
-                getter: helloSource.Getter,
-                setter: lcdSink.Input);
-            main.Add(helloToLcd);
+                var helloToEcho = new Continuation(this,
+                   name: "usageToEcho",
+                   getter: usageSource.Getter,
+                   setter: echoSink.Input);
+                main.Add(helloToEcho);
 
+                var showActions = new NamedBlockProgram(
+                    this, name: "listActions", blockName: LCD_OUT_NAME,
+                    blockAction: new WriteTextOnLcd(() => "{" + main.ToString() + "}"));
+                main.Add(showActions);
+            }
             Echo("initialization done");
             return main;
         }
         #endregion
         #region script entry points. 
+
+        ScriptProgram MainProgram;
+        public Program()
+        {
+            MainProgram = Initialize();
+        }
+
         public void Main(string eventName)
         {
-            var main = Initialize();
-            main.Main(eventName);
+            eventName = eventName ?? "eval.usageToEcho";
+            MainProgram.Main(eventName);
         }
         #endregion
     }
