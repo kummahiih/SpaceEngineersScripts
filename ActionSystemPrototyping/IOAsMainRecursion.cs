@@ -141,6 +141,7 @@ namespace IOAsMainRecursion
                 if (rest.StartsWith(".")) { break; }
                 if (rest.StartsWith("\\")) { i += 2; continue; }
                 if (rest.StartsWith(@"\.")) { i += 2; continue; }
+                i++;
             }
             if (i < Args.Length) { Name = Args.Substring(0, i); }
             if (i + 1 < Args.Length) { Rest = Args.Substring(1 + 1); }
