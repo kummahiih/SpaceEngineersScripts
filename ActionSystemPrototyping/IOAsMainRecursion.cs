@@ -28,11 +28,15 @@ namespace IOAsMainRecursion
 
         public ScriptProgram Initialize()
         {
-            Echo("initializing");
+            Echo("initializing program infrastructure");
             var parser = new ArgsParser();
             var continuations = new ContinuationContainer(this, name: "continuations");
+            var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);                     
+            Echo("initializing programs");
 
-            var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);            
+            var LcdSink = new LcdSink(this, name: "lcdSink", blockName: LCD_OUT_NAME);
+
+            Echo("initializing hello worlds");          
 
             var helloAction = new LambdaScriptAction(this, name: "helloTerminal",
                 lambda: param => { Echo("Hello Terminal"); });
@@ -46,7 +50,17 @@ namespace IOAsMainRecursion
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
 
-            Echo("initializing done");
+            var helloSource = new LambdaScriptFunc(this, name: "helloSource",
+              lambda: param => new OutputArgs<string>("Hello world"));
+            main.Add(helloSource);
+
+            var helloContinuation = new Continuation(this, 
+                name: "helloPipe", 
+                getter:helloSource.Getter, 
+                setter: LcdSink.Input);
+            main.Add(helloContinuation);
+
+            Echo("initialization done");
             return main;
         }
         #endregion
@@ -58,6 +72,34 @@ namespace IOAsMainRecursion
         }
         #endregion
     }
+    public class LcdSink : ScriptProgram
+    {
+        protected string StrBuf;
+        protected readonly WriteTextOnLcd WriteAction;
+
+        public readonly string BlockName;
+        public LcdSink(MyGridProgram env, string name, string blockName) : base(env, name)
+        {
+            StrBuf = "";
+            BlockName = blockName;
+            WriteAction = new WriteTextOnLcd(() => StrBuf);
+        }
+
+        protected override void OnInput(OutputArgs args)
+        {
+            if (args.Param == PARAM_REGISTERED) { StrBuf = ""; return; }
+            if (args.Param != PARAM_ONEVALUATE) return;
+            var StrArgs = args as OutputArgs<String>;
+            if (StrArgs == null) return;
+            StrBuf = StrArgs.Value ?? "";
+        }
+
+        protected override void OnMain(string param = "")
+        {
+            Env.ForNamedBlockIfApply(blockName: BlockName,action: WriteAction);
+        }
+    }
+
     #region program infrastructure 
     #region block and group related program definitions 
     public class GroupProgram : BlockProgram
@@ -201,15 +243,15 @@ namespace IOAsMainRecursion
     public class OutputArgs<T> : OutputArgs
     {
         public readonly T Value;
-        public OutputArgs(ScriptProgram sender, ScriptProgram receiver, string param, T value) : base(sender, receiver, param) { Value = value; }
+        public OutputArgs( T value) : base() { Value = value; }
     }
     public abstract class OutputArgs
     {
-        public readonly ScriptProgram Sender;
+        public ScriptProgram Sender;
         public ScriptProgram Receiver;
-        public readonly string Param;
-        public OutputArgs(ScriptProgram sender, ScriptProgram receiver, string param) {Sender = sender; Receiver = receiver; Param = param; }
-        public override string ToString() { return "{S:" + Sender.Name + ", R:" + Receiver.Name + ", P:"+ (Param??"") + "}"; }
+        public string Param;
+        public OutputArgs() {}
+        public override string ToString() { return "{S:" + (Sender?.Name ??"") + ", R:" + (Receiver?.Name ?? "") + ", P:"+ (Param??"") + "}"; }
     }
 
     public class Continuation: ScriptProgram
@@ -217,7 +259,7 @@ namespace IOAsMainRecursion
         private Func<string,OutputArgs> Getter;
         private Action<OutputArgs> Setter;
         public OutputArgs LatestValue { get; private set; }
-        public Continuation(MyGridProgram env, string name) : base(env, name){}
+        public Continuation(MyGridProgram env, string name, Func<string, OutputArgs> getter, Action<OutputArgs> setter) : base(env, name){ Getter = getter; Setter = setter; }
 
         protected override void OnMain(string param = ""){  LatestValue = Getter(param); }
 
@@ -241,7 +283,8 @@ namespace IOAsMainRecursion
         public void Register(Continuation connection, ICollection<ScriptProgram> programs) {
             if (connection == null || programs == null) return;
             Env.Echo("Registering: "+ connection.ToString());
-            connection.Main(ScriptProgram.PARAM_REGISTERED);
+            connection.Main(ScriptProgram.PARAM_REGISTERED); //sender set here
+            connection.Continue();                           //receiver set here 
             programs.Add(connection.LatestValue.Sender);
             programs.Add(connection.LatestValue.Receiver);
             Continuations.Add(connection);
@@ -260,6 +303,31 @@ namespace IOAsMainRecursion
 
     #endregion
     #region program base classes
+
+    public class LambdaScriptFunc : ScriptProgram
+    {
+        protected readonly Func<string, OutputArgs> Lambda;
+        public OutputArgs Output { protected set; get; }
+        public LambdaScriptFunc(MyGridProgram env, string name, Func<string, OutputArgs> lambda) : base(env, name) { Lambda = lambda; }
+        
+        public OutputArgs Getter(string param)
+        {
+            OnMain(param);
+            return Output;
+        }
+
+        protected override void OnMain(string param = "")
+        {
+            if (Lambda != null)
+            {
+                Output = Lambda(param);
+                Output.Sender = this;
+                Output.Param = param;
+            }
+        }
+    }
+
+
     public class LambdaScriptAction : ScriptProgram
     {
         protected readonly Action<string> Lambda;
@@ -288,6 +356,7 @@ namespace IOAsMainRecursion
         {
             if (args == null) return;
             Env.Echo("input args: " +  "(" + args.ToString() + ")");
+            args.Receiver = this;
             OnInput(args);
             Main(args.Param);
         }
