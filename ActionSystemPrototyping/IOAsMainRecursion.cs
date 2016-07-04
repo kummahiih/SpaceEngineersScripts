@@ -130,7 +130,7 @@ namespace IOAsMainRecursion
         public string Name { get; protected set; }= "";
         public string Rest { get; protected set; } = "";
         public ArgsParser(){ }
-        public void Parse(string args){Name = Args = (args ?? ""); OnParse();}
+        public void Parse(string args){Name = Args = (args ?? ""); Rest = ""; OnParse();}
 
         protected virtual void OnParse()
         {
