@@ -21,7 +21,6 @@ namespace IOAsMainRecursion
 {
     public class Program : MyGridProgram
     {
-
         #region copymeto programmable block  
         //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ActionSystem.cs 
         #region implementations with block or group names 
@@ -59,7 +58,7 @@ namespace IOAsMainRecursion
         }
         #endregion
     }
-
+    #region program infrastructure 
     #region block and group related program definitions 
     public class GroupProgram : BlockProgram
     {
@@ -122,8 +121,7 @@ namespace IOAsMainRecursion
         }
     }
     #endregion
-
-    #region programs 
+    #region program containers and management
     public class ArgsParser
     {
         public string Args { get; protected set; }= "";
@@ -147,7 +145,7 @@ namespace IOAsMainRecursion
             if (i + 1 < Args.Length) { Rest = Args.Substring(1 + 1); }
         }
     }
-
+    
     /// <summary> 
     /// wraps actions into a tree like stucture.  
     /// actions are implemented as delegates, because some methods can be only called  
@@ -197,8 +195,8 @@ namespace IOAsMainRecursion
         }
     }
 
-    #region program input and output 
-    #region generic io
+ 
+    #region program input and output
 
     public class OutputArgs<T> : OutputArgs
     {
@@ -259,7 +257,9 @@ namespace IOAsMainRecursion
         }
     }
     #endregion
+
     #endregion
+    #region program base classes
     public class LambdaScriptAction : ScriptProgram
     {
         protected readonly Action<string> Lambda;
@@ -306,9 +306,9 @@ namespace IOAsMainRecursion
         protected abstract void OnMain(string param = "");
     }
     #endregion
+    #endregion
 
     #region actions for blocks 
-
     public class WriteTextOnLcd : BlockAction
     {
         public readonly Func<string> GetText;
@@ -338,6 +338,7 @@ namespace IOAsMainRecursion
     }
 
     #endregion
+
     public static class Ext
     {
         #region linq substitutes 
@@ -385,15 +386,14 @@ namespace IOAsMainRecursion
         }
 
         #endregion
+        #region checks and tests
         public static Func<IMyTerminalBlock, bool> ReplaceNullCondition(Func<IMyTerminalBlock, bool> x) { return x != null ? x : _ => true; }
         public static Func<IMyBlockGroup, bool> ReplaceNullCondition(Func<IMyBlockGroup, bool> x) { return x != null ? x : _ => true; }
-        #region basic tests to use with Where 
         public static bool IsSorter(this IMyTerminalBlock x) { return x is IMyConveyorSorter; }
         public static bool IsTimer(this IMyTerminalBlock x) { return x is IMyTimerBlock; }
         public static bool IsIMyTextPanel(this IMyTerminalBlock x) { return x is IMyTextPanel; }
         #endregion
         #endregion
-
     } // Omit this last closing brace as the game will add it back in
 
 }
