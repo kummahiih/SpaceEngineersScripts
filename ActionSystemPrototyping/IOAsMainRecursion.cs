@@ -254,6 +254,7 @@ namespace IOAsMainRecursion
             var ret2 = "{N:" + Name + ",{";
             Continuations.ForEach(c => { ret2 += c.ToString() + ", \n"; });
             ret2 += "}\n";
+            ret2 += "}\n";
             return ret2;
         }
     }
