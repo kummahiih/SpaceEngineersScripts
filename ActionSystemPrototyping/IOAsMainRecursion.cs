@@ -26,7 +26,7 @@ namespace IOAsMainRecursion
         {
             Echo("initializing program infrastructure");
             var parser = new ArgsParser();
-            var continuations = new ContinuationContainer(this, name: "continuations");
+            var continuations = new ContinuationContainer(this, name: "continuations", argsParser: parser);
             var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);                     
             Echo("initializing programs");
 
@@ -253,34 +253,36 @@ namespace IOAsMainRecursion
     public class Continuation: ScriptProgram
     {
         private Func<string,OutputArgs> Getter;
-        private Action<OutputArgs> Setter;
+        private Action<string,OutputArgs> Setter;
         public OutputArgs LatestValue { get; private set; }
-        public Continuation(MyGridProgram env, string name, Func<string, OutputArgs> getter, Action<OutputArgs> setter) : base(env, name){ Getter = getter; Setter = setter; }
+        public Continuation(MyGridProgram env, string name, Func<string, OutputArgs> getter, Action<string, OutputArgs> setter) : base(env, name){ Getter = getter; Setter = setter; }
 
         protected override void OnMain(string param = ""){  LatestValue = Getter(param); }
 
-        public void Continue() { Setter(LatestValue); }
+        public void Continue(string args) { Setter(args, LatestValue); }
     }
 
     public class ContinuationContainer: ScriptProgram
     {
         protected ICollection<Continuation> Continuations;
-        public ContinuationContainer(MyGridProgram env, string name):base(env, name) { Continuations = new List<Continuation>(); }
+        protected readonly ArgsParser ArgsParser;
+        public ContinuationContainer(MyGridProgram env, string name, ArgsParser argsParser ) :base(env, name) { Continuations = new List<Continuation>(); ArgsParser = argsParser; }
       
         protected override void OnMain(string param = "")
         {
+            ArgsParser.Parse(param);
             Env.Echo("Getting new values");
             var cons = Continuations
-                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == param);
+                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == ArgsParser.Name);
             cons.ForEach(c => c.Main(ScriptProgram.PARAM_ONEVALUATE));
             Env.Echo("Setting new values");
-            Continuations.ForEach(c => c.Continue());
+            Continuations.ForEach(c => c.Continue(ArgsParser.Args));
         }
         public void Register(Continuation connection, ICollection<ScriptProgram> programs) {
             if (connection == null || programs == null) return;
             Env.Echo("Registering: "+ connection.ToString());
             connection.Main(ScriptProgram.PARAM_REGISTERED); //sender set here
-            connection.Continue();                           //receiver set here 
+            connection.Continue(ScriptProgram.PARAM_REGISTERED);                           //receiver set here 
             programs.Add(connection.LatestValue.Sender);
             programs.Add(connection.LatestValue.Receiver);
             Continuations.Add(connection);
@@ -348,9 +350,10 @@ namespace IOAsMainRecursion
 
         public override string ToString() { return "N:" + Name; }
 
-        public void Input(OutputArgs args)
+        public void Input(string gotArgs,OutputArgs args)
         {
             if (args == null) return;
+            args.Param = gotArgs;
             Env.Echo("input args: " +  "(" + args.ToString() + ")");
             args.Receiver = this;
             OnInput(args);
