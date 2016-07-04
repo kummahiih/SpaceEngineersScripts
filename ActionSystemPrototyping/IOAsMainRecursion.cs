@@ -26,7 +26,7 @@ namespace IOAsMainRecursion
         {
             Echo("initializing program infrastructure");
             var parser = new ArgsParser();
-            var continuations = new ContinuationContainer(this, name: "continuations", argsParser: parser);
+            var continuations = new ContinuationContainer(this, name: "eval", argsParser: parser);
             var main = new MainScriptProgram(this, name: "Main", continuations: continuations, argsParser: parser);                     
             Echo("initializing programs");
 
@@ -46,7 +46,8 @@ namespace IOAsMainRecursion
                 blockAction: new WriteTextOnLcd(() => main.ToString()));
             main.Add(showActions);
 
-            var helloSource = new LambdaScriptFunc(this, name: "helloSource",
+            var helloSource = new LambdaScriptFunc(this, name: "helloSource", 
+              argsParser: parser,
               lambda: param => new OutputArgs<string>("Hello world"));
             main.Add(helloSource);
 
@@ -163,10 +164,10 @@ namespace IOAsMainRecursion
     public class ArgsParser
     {
         public string Args { get; protected set; }= "";
-        public string Name { get; protected set; }= "";
+        public string FirstParam { get; protected set; }= "";
         public string Rest { get; protected set; } = "";
         public ArgsParser(){ }
-        public void Parse(string args){Name = Args = (args ?? ""); Rest = ""; OnParse();}
+        public void Parse(string args){FirstParam = Args = (args ?? ""); Rest = ""; OnParse();}
 
         protected virtual void OnParse()
         {
@@ -179,7 +180,7 @@ namespace IOAsMainRecursion
                 if (rest.StartsWith(@"\.")) { i += 2; continue; }
                 i++;
             }
-            if (i < Args.Length) { Name = Args.Substring(0, i); }
+            if (i < Args.Length) { FirstParam = Args.Substring(0, i); }
             if (i + 1 < Args.Length) { Rest = Args.Substring(1 + 1); }
         }
     }
@@ -198,7 +199,7 @@ namespace IOAsMainRecursion
         public MainScriptProgram(MyGridProgram env, string name, ContinuationContainer continuations, ArgsParser argsParser
             ) : 
             base(env, name)
-        { Programs = new HashSet<ScriptProgram>(); Continuations = continuations; ArgsParser = argsParser;}
+        { Programs = new HashSet<ScriptProgram>() { continuations }; Continuations = continuations; ArgsParser = argsParser;}
 
         public void Add(ScriptProgram program)
         { 
@@ -214,7 +215,7 @@ namespace IOAsMainRecursion
             ArgsParser.Parse(param);
 
             Programs
-                .Where(x => string.IsNullOrEmpty(param) || x.Name == ArgsParser.Name)
+                .Where(x => string.IsNullOrEmpty(param) || x.Name == ArgsParser.FirstParam)
                 .ForEach(x => x.Main(ArgsParser.Rest));
         }
 
@@ -253,13 +254,13 @@ namespace IOAsMainRecursion
     public class Continuation: ScriptProgram
     {
         private Func<string,OutputArgs> Getter;
-        private Action<string,OutputArgs> Setter;
+        private Action<OutputArgs> Setter;
         public OutputArgs LatestValue { get; private set; }
-        public Continuation(MyGridProgram env, string name, Func<string, OutputArgs> getter, Action<string, OutputArgs> setter) : base(env, name){ Getter = getter; Setter = setter; }
+        public Continuation(MyGridProgram env, string name, Func<string, OutputArgs> getter, Action<OutputArgs> setter) : base(env, name){ Getter = getter; Setter = setter; }
 
         protected override void OnMain(string param = ""){  LatestValue = Getter(param); }
 
-        public void Continue(string args) { Setter(args, LatestValue); }
+        public void Continue() { Setter(LatestValue); }
     }
 
     public class ContinuationContainer: ScriptProgram
@@ -273,16 +274,16 @@ namespace IOAsMainRecursion
             ArgsParser.Parse(param);
             Env.Echo("Getting new values");
             var cons = Continuations
-                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == ArgsParser.Name);
+                .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == ArgsParser.FirstParam);
             cons.ForEach(c => c.Main(ScriptProgram.PARAM_ONEVALUATE));
             Env.Echo("Setting new values");
-            Continuations.ForEach(c => c.Continue(ArgsParser.Args));
+            Continuations.ForEach(c => c.Continue());
         }
         public void Register(Continuation connection, ICollection<ScriptProgram> programs) {
             if (connection == null || programs == null) return;
             Env.Echo("Registering: "+ connection.ToString());
-            connection.Main(ScriptProgram.PARAM_REGISTERED); //sender set here
-            connection.Continue(ScriptProgram.PARAM_REGISTERED);                           //receiver set here 
+            connection.Main(PARAM_REGISTERED); //sender set here
+            connection.Continue();   //receiver set here 
             programs.Add(connection.LatestValue.Sender);
             programs.Add(connection.LatestValue.Receiver);
             Continuations.Add(connection);
@@ -290,7 +291,7 @@ namespace IOAsMainRecursion
         }
         public override string ToString()
         {
-            var ret2 = "{N:" + Name + ",{";
+            var ret2 = "{N:" + Name + ", childs:{";
             Continuations.ForEach(c => { ret2 += c.ToString() + ", \n"; });
             ret2 += "}\n";
             ret2 += "}\n";
@@ -306,7 +307,8 @@ namespace IOAsMainRecursion
     {
         protected readonly Func<string, OutputArgs> Lambda;
         public OutputArgs Output { protected set; get; }
-        public LambdaScriptFunc(MyGridProgram env, string name, Func<string, OutputArgs> lambda) : base(env, name) { Lambda = lambda; }
+        protected readonly ArgsParser ArgsParser;
+        public LambdaScriptFunc(MyGridProgram env, string name, ArgsParser argsParser, Func<string, OutputArgs> lambda) : base(env, name) { Lambda = lambda; ArgsParser = argsParser; }
         
         public OutputArgs Getter(string param)
         {
@@ -318,9 +320,10 @@ namespace IOAsMainRecursion
         {
             if (Lambda != null)
             {
-                Output = Lambda(param);
+                ArgsParser.Parse(param);
+                Output = Lambda(ArgsParser.FirstParam);
                 Output.Sender = this;
-                Output.Param = param;
+                Output.Param = ArgsParser.Rest;
             }
         }
     }
@@ -350,10 +353,9 @@ namespace IOAsMainRecursion
 
         public override string ToString() { return "N:" + Name; }
 
-        public void Input(string gotArgs,OutputArgs args)
+        public void Input(OutputArgs args)
         {
             if (args == null) return;
-            args.Param = gotArgs;
             Env.Echo("input args: " +  "(" + args.ToString() + ")");
             args.Receiver = this;
             OnInput(args);
