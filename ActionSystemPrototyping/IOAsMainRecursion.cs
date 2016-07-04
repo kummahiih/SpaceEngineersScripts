@@ -85,7 +85,7 @@ namespace IOAsMainRecursion
         protected override void OnInput(OutputArgs args)
         {
             if (args.Param == PARAM_REGISTERED) { StrBuf = ""; return; }
-            if (args.Param != PARAM_ONEVALUATE) return;
+
             var StrArgs = args as OutputArgs<String>;
             if (StrArgs == null) return;
             StrBuf = StrArgs.Value ?? "";
@@ -275,7 +275,7 @@ namespace IOAsMainRecursion
             Env.Echo("Getting new values");
             var cons = Continuations
                 .Where(c => string.IsNullOrEmpty(param) || c?.LatestValue?.Sender?.Name == ArgsParser.FirstParam);
-            cons.ForEach(c => c.Main(ScriptProgram.PARAM_ONEVALUATE));
+            cons.ForEach(c => c.Main(param));
             Env.Echo("Setting new values");
             Continuations.ForEach(c => c.Continue());
         }
@@ -343,7 +343,6 @@ namespace IOAsMainRecursion
     public abstract class ScriptProgram
     {
         public static readonly string PARAM_REGISTERED = "REGISTERED";
-        public static readonly string PARAM_ONEVALUATE = "ONEVALUATE";
 
         public MyGridProgram Env { get; private set; }
         public readonly string Name; //here name is id because this is used in game that way 
