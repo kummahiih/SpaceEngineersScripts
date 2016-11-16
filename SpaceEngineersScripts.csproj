@@ -113,6 +113,7 @@
     <Compile Include="Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="base\ScriptBase.cs" />
+    <Compile Include="RandomMover.cs" />
     <Compile Include="TimedSorter.cs" />
     <Compile Include="TimedSorter2.cs" />
     <Compile Include="TimedWelderWithMerge.cs" />
