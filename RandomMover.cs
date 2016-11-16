@@ -15,12 +15,15 @@ namespace SpaceEngineersScripts
         
         const string RGyroName = "RGyro";
         const string RThruster = "RThrust";
+        const string RTSpot = "RTSpot";
+
         const int NumberOfMoves = 10;
 
-        public void RandomTurn()
+        public void Main(string eventName)
         {
             var gyro = new Block<IMyGyro>(this, RGyroName);
             var truster = new Block<IMyThrust>(this, RThruster);
+            var spot = new Block<IMyReflectorLight>(this, RTSpot);
 
             Action increaseOverride = () => truster.ApplyAction("IncreaseOverride");
             Action decreaseOverride = () => truster.ApplyAction("DecreaseOverride");
@@ -30,21 +33,34 @@ namespace SpaceEngineersScripts
             Action decreasePitch = () => gyro.ApplyAction("DecreasePitch");
             Action increaseRoll = () => gyro.ApplyAction("IncreaseRoll");
             Action decreaseRoll = () => gyro.ApplyAction("DecreaseRoll");
+            Action increaseRadius = () => spot.ApplyAction("IncreaseRadius");
+            Action decreaseRadius = () => spot.ApplyAction("DecreaseRadius");
+            Action increaseBlinkI = () => spot.ApplyAction("IncreaseBlink Interval");
+            Action decreaseBlinkI = () => spot.ApplyAction("DecreaseBlink Interval");
+            Action increaseBlinkL = () => spot.ApplyAction("IncreaseBlink Lenght");
+            Action decreaseBlinkL = () => spot.ApplyAction("DecreaseBlink Lenght");
 
             var actions = new Action[]{
-                increaseOverride,increaseOverride,increaseOverride,
+                increaseOverride,
+                decreaseOverride,decreaseOverride,decreaseOverride,
                 decreaseOverride,decreaseOverride,decreaseOverride,
                 increaseYaw,
                 decreaseYaw,
                 increasePitch,
                 decreasePitch,
                 increaseRoll,
-                decreaseRoll
+                decreaseRoll,
+                increaseRadius,
+                decreaseRadius,
+                increaseBlinkI,
+                decreaseBlinkI,
+                increaseBlinkL,
+                decreaseBlinkL 
                 };
 
             var random = new Random();
 
-            for(int i = 0;i< NumberOfMoves; i++)
+            for (int i = 0; i < NumberOfMoves; i++)
             {
                 var index = random.Next(0, actions.Length - 1);
                 actions[index].Invoke();
@@ -62,12 +78,7 @@ namespace SpaceEngineersScripts
                 => Get().ApplyAction(action);
         }
 
-        public void Main(string eventName)
-        {
-            var random = new Random();
-            var choice = random.Next();
 
-        }
 
 
     #endregion
