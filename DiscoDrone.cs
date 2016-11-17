@@ -6,12 +6,12 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage;
 
-namespace MinerScript
+namespace DiscoDrone
 {
     public class DiscoDrone : MyGridProgram
     {
         #region copymeto programmable block 
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/RandomMover.cs
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/DiscoDrone.cs
 
 
         const int NumberOfMoves = 60;
