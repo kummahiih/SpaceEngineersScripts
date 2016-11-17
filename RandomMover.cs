@@ -39,6 +39,7 @@ namespace SpaceEngineersScripts
             Action decreaseBlinkI = () => spot.ApplyAction("DecreaseBlink Interval");
             Action increaseBlinkL = () => spot.ApplyAction("IncreaseBlink Lenght");
             Action decreaseBlinkL = () => spot.ApplyAction("DecreaseBlink Lenght");
+            
 
             var actions = new Action[]{
                 increaseOverride,
@@ -55,7 +56,7 @@ namespace SpaceEngineersScripts
                 increaseBlinkI,
                 decreaseBlinkI,
                 increaseBlinkL,
-                decreaseBlinkL 
+                decreaseBlinkL
                 };
 
             var random = new Random();
@@ -73,9 +74,9 @@ namespace SpaceEngineersScripts
             MyGridProgram Env { get; }
             public string Name { get; }
             public TBlockType Get()
-                => Env.GridTerminalSystem.GetBlockWithName(Name) as TBlockType;
+                => Env?.GridTerminalSystem.GetBlockWithName(Name) as TBlockType;
             public void ApplyAction(string action)
-                => Get().ApplyAction(action);
+                => Get()?.ApplyAction(action);
         }
 
 
