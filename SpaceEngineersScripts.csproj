@@ -109,14 +109,15 @@
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
-    <Compile Include="miner.cs" />
-    <Compile Include="Navigator.cs" />
+    <Compile Include="DiscoDrone.cs" />
+    <Compile Include="trash\miner.cs" />
+    <Compile Include="trash\Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="base\ScriptBase.cs" />
     <Compile Include="RandomMover.cs" />
-    <Compile Include="TimedSorter.cs" />
-    <Compile Include="TimedSorter2.cs" />
-    <Compile Include="TimedWelderWithMerge.cs" />
+    <Compile Include="trash\TimedSorter.cs" />
+    <Compile Include="trash\TimedSorter2.cs" />
+    <Compile Include="trash\TimedWelderWithMerge.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
