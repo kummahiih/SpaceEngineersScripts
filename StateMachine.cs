@@ -16,22 +16,61 @@ namespace StateMatch
         //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere
 
         //run the programmable block with the state name as a parameter
-        const string TIMER_NAME = "STATE TIMER";
-        const string TIMER_EVENT = "TIMER EVENT";
-
-        const string LCD_NAME = "STATE LCD";
-
-        const string AIR_VENT_NAME = "AIR VENT";
-        const string DOOR_NAME = "DOOR";
-
-        const string GEAR_NAME = "GEAR";
+       
+        const string TIMER_EVENT   = "TIMER EVENT";
 
 
+        const string TIMER_NAME     = "STATE TIMER";
+        const string LCD_NAME       = "STATE LCD";
+        const string AIR_VENT_NAME  = "AIR VENT";
+        const string DOOR_NAME      = "DOOR";
+        const string GEAR_NAME      = "GEAR";
+        const string LIGHT_BACK     = "LIGHT BACK";
+        const string MERGE_MED      = "MERGE MED";
+        const string CONNECTOR_MED  = "CONNECTOR MED";
+
+        
 
         public void Main(string eventName)
         {
+            List<State> states = new List<State>();
+            List<string> block_names = new List<string>{
+                TIMER_NAME,
+                LCD_NAME,
+                AIR_VENT_NAME,
+                DOOR_NAME,
+                GEAR_NAME,
+                LIGHT_BACK,
+                MERGE_MED,
+                CONNECTOR_MED
+            };
+
+            State ls = new State(this, "ls", () => {
+                var lcd = this.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
+                lcd?.WritePublicText(
+                    string.Join(",\n", states.Select(s => s.to_str())) + "\n");
+            },
+            (float)1.0);
+
+            State blocks = new State(this, "blocks", () => {
+                var lcd = this.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
+                lcd?.WritePublicText("");
+                foreach (var name in block_names)
+                {
+                    lcd?.WritePublicText(
+                        "'"+ name +"'"+ (
+                        this.GridTerminalSystem.GetBlockWithName(name) == null ? "\n" : " FOUND\n"),
+                        true);                             
+                }               
+            },
+            (float)1.0);
+
+
             State idle = new State(this, "IDLE", 
-                () => SaveString(this, DateTime.UtcNow.ToLongTimeString()), 
+                () => {
+                    var lcd = this.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
+                    lcd?.WritePublicText(" "+DateTime.UtcNow.ToLongTimeString(), true);
+                }, 
                 (float)1.0);
             idle.Next = idle;
 
@@ -69,7 +108,7 @@ namespace StateMatch
                 gear?.ApplyAction("Unlock");
                 },
                 (float)1.0);
-            detach.Next = depress;
+            detach.Next = close_door;
 
             State attach = new State(this, "ATTACH", () => {
                 var gear = this.GridTerminalSystem.GetBlockWithName(GEAR_NAME);
@@ -79,7 +118,51 @@ namespace StateMatch
                 (float)1.0);
             attach.Next = depress;
 
-            var states = new List<State> { idle, open_door, press, close_door, depress, detach, attach };
+            State unconnect = new State(this, "UNCONNECT", () => {
+                var con = this.GridTerminalSystem.GetBlockWithName(CONNECTOR_MED) as IMyShipConnector;
+                con?.ApplyAction("OnOff_On");
+                con?.ApplyAction("Unlock");
+
+                var blink = this.GridTerminalSystem.GetBlockWithName(LIGHT_BACK);
+                blink?.ApplyAction("OnOff_On");
+            },
+            (float)4.0);
+            unconnect.Next = attach;
+
+            State unmerge = new State(this, "UNMERGE", () => {
+                var merge_b = this.GridTerminalSystem.GetBlockWithName(MERGE_MED) as IMyShipMergeBlock;
+                merge_b?.ApplyAction("OnOff_Off");
+            },
+            (float)2.0);
+            unmerge.Next = unconnect;
+
+            State connect = new State(this, "CONNECT", () => {
+                var con = this.GridTerminalSystem.GetBlockWithName(CONNECTOR_MED) as IMyShipConnector;
+                con?.ApplyAction("OnOff_On");
+                con?.ApplyAction("Lock");
+
+                var blink = this.GridTerminalSystem.GetBlockWithName(LIGHT_BACK);
+                blink?.ApplyAction("OnOff_Off");
+            },
+            (float)4.0);
+            connect.Next = attach;
+
+            State merge = new State(this, "MERGE", () => {
+                var con = this.GridTerminalSystem.GetBlockWithName(CONNECTOR_MED) as IMyShipConnector;
+                con?.ApplyAction("OnOff_On");
+                con?.ApplyAction("Unlock");
+                var merge_b = this.GridTerminalSystem.GetBlockWithName(MERGE_MED) as IMyShipMergeBlock;
+                merge_b?.ApplyAction("OnOff_On");
+            },
+            (float)2.0);
+            merge.Next = connect;
+
+
+            states.AddRange( new []{
+                ls, blocks, idle, open_door, press, close_door, depress, detach, attach,
+                unconnect, unmerge,  connect, merge});
+
+
 
             if (eventName == TIMER_EVENT) {
                 var state_name = GetString(this);
@@ -95,14 +178,17 @@ namespace StateMatch
         {
             var lcd = env.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
             if (lcd == null) return;
-            lcd.WritePublicText(text);
+            lcd.WritePublicTitle(text);
+            if(lcd.GetPublicText().Count(s => s =='\n') > 15)
+                lcd.WritePublicText("\n");
+            lcd.WritePublicText(" -> " +text+ "\n", true);
         }
 
         public static string GetString(MyGridProgram env)
         {
             var lcd = env.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
             if (lcd == null) return null;
-            return lcd.GetPublicText();
+            return lcd.GetPublicTitle();
         }
 
         class State
@@ -121,6 +207,8 @@ namespace StateMatch
                 Env = env;
             }
 
+            public string to_str() => "'"+Name +"'"+ (Next != null ? (" -> " + "'" + Next.Name + "'") : "");
+
 
             public void StartTimer(string name = null)
             {
@@ -136,6 +224,9 @@ namespace StateMatch
             public void Execute(string name)
             {
                 if (Name != name) return;
+                var lcd = Env.GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
+                lcd?.WritePublicText("!" + Name, true);
+
                 _action?.Invoke();
                 Next?.StartTimer();
             }
