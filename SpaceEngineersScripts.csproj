@@ -110,6 +110,7 @@
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
     <Compile Include="DiscoDrone.cs" />
+    <Compile Include="StateMachine.cs" />
     <Compile Include="trash\miner.cs" />
     <Compile Include="trash\Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
