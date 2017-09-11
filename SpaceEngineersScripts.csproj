@@ -109,6 +109,7 @@
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
+    <Compile Include="LanderStateMachine.cs" />
     <Compile Include="DiscoDrone.cs" />
     <Compile Include="StateMachine.cs" />
     <Compile Include="trash\miner.cs" />
