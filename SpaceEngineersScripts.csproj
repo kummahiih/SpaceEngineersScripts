@@ -106,6 +106,7 @@
     <Compile Include="ActionSystem.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsMainRecursion.cs" />
     <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
+    <Compile Include="AirLockStateMAchine.cs" />
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
