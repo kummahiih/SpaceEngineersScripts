@@ -49,13 +49,16 @@ namespace MinerScript
         readonly BlockAction O2GenOffAction = new BlockAction(
            O2GEN, gen => gen?.ApplyAction("OnOff_Off"));
 
+
+        
+
         //idle loop:
-        // time (idle)
-        // list all named blocks (blocks)
-        // list all registered states (ls)
+        // time(idle)
+        // list all named blocks(blocks)
+        // list all registered states(ls)
 
         //close door sequence:
-        // Landing light off (CLOSE)
+        // Landing light off(CLOSE)
         // Close door
         // Ogygen generator off
         // Oxygen tank on
@@ -65,7 +68,7 @@ namespace MinerScript
         // idle
 
         //detach sequence:        
-        // Gyroscope on (DETACH)
+        // Gyroscope on(DETACH)
         // Landing gear autolock off and unlock
         // Dampeners off
         // Ogygen generator on
@@ -73,11 +76,11 @@ namespace MinerScript
         // Thrust --
         // hatch on
         // Landing gear autolock on
-        // Close the door (full sequence)
+        // Close the door(full sequence)
 
 
         //open door sequence:
-        // Landing light on (OPEN)
+        // Landing light on(OPEN)
         // Ogygen generator off
         // Oxygen tank on
         // Depressurize on
@@ -87,24 +90,25 @@ namespace MinerScript
         // idle
 
         //attach sequence:
-        // set the landin gear (ATTACH)
+        // set the landin gear(ATTACH)
         // gyro off
         // hatch off
-        // open door (full sequence)
+        // open door(full sequence)
 
         public void Main(string eventName)
         {
             List<BlockState> states = new List<BlockState>();
 
-            BlockState idle = new BlockState( this, "IDLE", TimeAction, (float)5.0);
+            BlockState idle = new BlockState("IDLE", TimeAction, (float)5.0);
 
             //idle loop
             states.SetUpSequence(new[] {
                 idle,
-                new BlockState( this, "blocks", LCD_NAME,
+                 new BlockState("time", TimeAction, (float)5.0),
+                 new BlockState( "blocks", LCD_NAME,
                     lcd => {
                         (lcd as IMyTextPanel)?.WritePublicText("");
-                        var statenames = states.Select(s => s.BlockAction.BlockName)
+                        var statenames = states.Select(s => s.BlockAction?.BlockName)
                             .Concat(new[] { TIMER_NAME })
                             .Distinct();
                         foreach (var name in statenames)
@@ -116,73 +120,73 @@ namespace MinerScript
                         }},
                     (float)5.0),
 
-                new BlockState( this, "ls", LCD_NAME,
+                new BlockState( "ls", LCD_NAME,
                     lcd => (lcd as IMyTextPanel)?.WritePublicText(
                             string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                     (float)5.0),
                 idle});
 
 
-            var openState = new BlockState(this, "OPEN", LIGHT_BACK,
+            var openState = new BlockState("OPEN", LIGHT_BACK,
                     light => light?.ApplyAction("OnOff_On"), (float)0.5);
 
             //open sequence
             states.SetUpSequence(new[] {
                openState,
-                new BlockState(this, "O2GEN OFF O", O2GenOffAction, (float)0.5),
-                new BlockState(this, "O2TANK ON O", O2TankOnAction, (float)0.5),
-                new BlockState(this, "DEPRESSURIZE", AIR_VENT_NAME, 
+                new BlockState("O2GEN OFF O", O2GenOffAction, (float)0.5),
+                new BlockState("O2TANK ON O", O2TankOnAction, (float)0.5),
+                new BlockState("DEPRESSURIZE", AIR_VENT_NAME, 
                     vent => vent?.ApplyAction("Depressurize_On"), (float)1.0),
-                new BlockState( this, "OPEN DOOR", DOOR_NAME, 
+                new BlockState( "OPEN DOOR", DOOR_NAME, 
                     door => door?.ApplyAction("Open_On"), (float)7.0),
-                new BlockState(this, "O2TANK OFF O", O2TankOffAction, (float)0.5),
-                new BlockState(this, "O2GEN ON O", O2GenOnAction, (float)0.5),
+                new BlockState( "O2TANK OFF O", O2TankOffAction, (float)0.5),
+                new BlockState( "O2GEN ON O", O2GenOnAction, (float)0.5),
                 idle
              });
 
-            var closeState = new BlockState(this, "CLOSE", LIGHT_BACK,
+            var closeState = new BlockState("CLOSE", LIGHT_BACK,
                     light => light?.ApplyAction("OnOff_Off"), (float)0.5);
 
             ///close sequence
             states.SetUpSequence(new[] {
                 closeState,
-                new BlockState( this, "CLOSE DOOR", DOOR_NAME, 
+                new BlockState("CLOSE DOOR", DOOR_NAME, 
                     door => door?.ApplyAction("Open_Off"), (float)1.0),
-                new BlockState(this, "O2GEN OFF C", O2GenOffAction, (float)0.5),
-                new BlockState(this, "O2TANK ON C", O2TankOnAction, (float)0.5),
-                new BlockState(this, "PRESSURIZE", AIR_VENT_NAME,
+                new BlockState("O2GEN OFF C", O2GenOffAction, (float)0.5),
+                new BlockState("O2TANK ON C", O2TankOnAction, (float)0.5),
+                new BlockState("PRESSURIZE", AIR_VENT_NAME,
                     vent => vent?.ApplyAction("Depressurize_Off"), (float)2.0),
-                new BlockState(this, "O2TANK OFF C", O2TankOffAction, (float)0.5),
-                new BlockState(this, "O2GEN ON C", O2GenOnAction, (float)0.5),
+                new BlockState("O2TANK OFF C", O2TankOffAction, (float)0.5),
+                new BlockState("O2GEN ON C", O2GenOnAction, (float)0.5),
                 idle
             });
 
             //detach sequence
             states.SetUpSequence(new[] {
-                new BlockState(this, "DETACH", GYRO,
+                new BlockState("DETACH", GYRO,
                     gyro => gyro?.ApplyAction("OnOff_On"), (float)0.5),
-                new BlockState(this, "GEAR UNLOCK", GEAR_NAME, gear => {
+                new BlockState("GEAR UNLOCK", GEAR_NAME, gear => {
                     gear?.ApplyAction("OnOff_On");
                     gear?.SetValueBool("Autolock", false);
                     gear?.ApplyAction("Unlock");},
                     (float)1.0),
-                new BlockState(this, "DAMPENERS OFF", CONTROL_STAT, 
+                new BlockState("DAMPENERS OFF", CONTROL_STAT, 
                     control => control?.SetValueBool("DampenersOverride", false), (float)0.5),
-                new BlockState(this, "THRUST INC", THRUST, 
+                new BlockState("THRUST INC", THRUST, 
                     thrust => {
                     thrust?.ApplyAction("IncreaseOverride");
                     thrust?.ApplyAction("IncreaseOverride");
                     thrust?.ApplyAction("IncreaseOverride");},
                     (float)0.5),
-                new BlockState(this, "THRUST DEC", THRUST, 
+                new BlockState("THRUST DEC", THRUST, 
                     thrust => {
                         thrust?.ApplyAction("DecreaseOverride");
                         thrust?.ApplyAction("DecreaseOverride");
                         thrust?.ApplyAction("DecreaseOverride");}, 
                     (float)10.0),
-                new BlockState( this, "HATCH ON", HATCH, 
+                new BlockState("HATCH ON", HATCH, 
                     hatch => hatch?.ApplyAction("OnOff_On"), (float)1.0),
-                new BlockState(  this, "AUTOLOCK", GEAR_NAME, 
+                new BlockState("AUTOLOCK", GEAR_NAME, 
                     gear => {
                        gear?.ApplyAction("OnOff_On");
                        gear?.SetValueBool("Autolock", true); },
@@ -192,7 +196,7 @@ namespace MinerScript
 
             //attach sequence
             states.SetUpSequence(new[] {
-                new BlockState(this, "ATTACH", GEAR_NAME, 
+                new BlockState("ATTACH", GEAR_NAME, 
                     gear => {
                         gear?.ApplyAction("OnOff_On");
                         // if the ship was just merged the old lock state is corrupted.  
@@ -203,9 +207,9 @@ namespace MinerScript
                         gear?.SetValueBool("Autolock", true);
                         gear?.ApplyAction("Lock"); },
                     (float)0.5),
-                new BlockState(this, "HATCH OFF", HATCH, 
+                new BlockState("HATCH OFF", HATCH, 
                     hatch => hatch?.ApplyAction("OnOff_Off"), (float)1.0),
-                new BlockState(this, "GYRO OFF", GYRO, 
+                new BlockState("GYRO OFF", GYRO, 
                     gyro => gyro?.ApplyAction("OnOff_Off"), (float)0.5),
                 openState
             });
@@ -280,21 +284,18 @@ namespace MinerScript
         public float Delay { get; }
         public BlockState Next { get; set; }
         public string Name { get; }
-        public MyGridProgram Env { get; }
 
         public BlockState(
-            MyGridProgram env,
             string name,
             string block_name,
             Action<IMyTerminalBlock> action,
             float delay,
             BlockState next = null) :
-            this(env, name, new BlockAction(block_name, action), delay, next)
+            this(name, new BlockAction(block_name, action), delay, next)
         { }
 
 
         public BlockState(
-            MyGridProgram env,
             string name,
             BlockAction block_action,
             float delay,
@@ -303,7 +304,6 @@ namespace MinerScript
             BlockAction = block_action;
             Delay = delay;
             Name = name;
-            Env = env;
             Next = next;
         }
 
@@ -317,7 +317,7 @@ namespace MinerScript
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
             => action(block);
 
-        public static void SetUpSequence(this List<BlockState> states,
+        public static List<BlockState> SetUpSequence(this List<BlockState> states,
             IEnumerable<BlockState> registered_states)
         {
             BlockState last = null;
@@ -330,6 +330,7 @@ namespace MinerScript
                 }
                 last = state;
             }
+            return states;
         }
     #endregion
     }// Omit this last closing brace as the game will add it back in
