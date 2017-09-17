@@ -103,24 +103,24 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ActionSystem.cs" />
+    <Compile Include="old\ActionSystem.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsMainRecursion.cs" />
     <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
-    <Compile Include="AirLockStateMAchine.cs" />
+    <Compile Include="old\AirLockStateMAchine.cs" />
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
     <Compile Include="LanderStateMachine.cs" />
-    <Compile Include="DiscoDrone.cs" />
-    <Compile Include="StateMachine.cs" />
-    <Compile Include="trash\miner.cs" />
-    <Compile Include="trash\Navigator.cs" />
+    <Compile Include="old\DiscoDrone.cs" />
+    <Compile Include="old\StateMachine.cs" />
+    <Compile Include="old\miner.cs" />
+    <Compile Include="old\Navigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="base\ScriptBase.cs" />
-    <Compile Include="RandomMover.cs" />
-    <Compile Include="trash\TimedSorter.cs" />
-    <Compile Include="trash\TimedSorter2.cs" />
-    <Compile Include="trash\TimedWelderWithMerge.cs" />
+    <Compile Include="old\RandomMover.cs" />
+    <Compile Include="old\TimedSorter.cs" />
+    <Compile Include="old\TimedSorter2.cs" />
+    <Compile Include="old\TimedWelderWithMerge.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
