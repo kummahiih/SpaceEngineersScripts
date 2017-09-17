@@ -7,50 +7,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MinerScript
+namespace LanderStateMAchine
 {
-    class LanderStateMachine : MyGridProgram
+    class Program : MyGridProgram
     {
         #region copymeto programmable block 
         //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere 
 
         //run the programmable block with the state name as a parameter 
-
-        const string TIMER_NAME = "STATE TIMER";
-        const string LCD_NAME = "STATE LCD";
-        const string AIR_VENT_NAME = "AIR VENT";
-        const string DOOR_NAME = "DOOR";
-        const string GEAR_NAME = "GEAR";
-        const string LIGHT_BACK = "LIGHT";
-
-        const string CONTROL_STAT = "CONTROL";
-        const string GYRO = "GYRO";
-        const string THRUST = "THRUST";
-        const string HATCH = "HATCH";
-
-        const string O2TANK = "O2TANK";
-        const string O2GEN = "O2GEN";
-
-        // what an opportunity to refactor the code ..
-
-        readonly BlockAction TimeAction = new BlockAction(
-            LCD_NAME, lcd => (lcd as IMyTextPanel)
-            ?.WritePublicText(" " + DateTime.UtcNow.ToLongTimeString()));
-
-        readonly BlockAction O2GenOnAction = new BlockAction(
-            O2GEN, gen => gen?.ApplyAction("OnOff_On"));
-
-        readonly BlockAction O2TankOffAction = new BlockAction(
-            O2TANK, tank => tank?.ApplyAction("OnOff_Off"));
-
-        readonly BlockAction O2TankOnAction = new BlockAction(
-            O2TANK, tank => tank?.ApplyAction("OnOff_On"));
-
-        readonly BlockAction O2GenOffAction = new BlockAction(
-           O2GEN, gen => gen?.ApplyAction("OnOff_Off"));
-
-
-        
 
         //idle loop:
         // time(idle)
@@ -95,11 +59,50 @@ namespace MinerScript
         // hatch off
         // open door(full sequence)
 
-        public void Main(string eventName)
-        {
-            List<BlockState> states = new List<BlockState>();
+        const string TIMER_NAME = "STATE TIMER";
+        const string LCD_NAME = "STATE LCD";
+        const string AIR_VENT_NAME = "AIR VENT";
+        const string DOOR_NAME = "DOOR";
+        const string GEAR_NAME = "GEAR";
+        const string LIGHT_BACK = "LIGHT";
 
-            BlockState idle = new BlockState("IDLE", TimeAction, (float)5.0);
+        const string CONTROL_STAT = "CONTROL";
+        const string GYRO = "GYRO";
+        const string THRUST = "THRUST";
+        const string HATCH = "HATCH";
+
+        const string O2TANK = "O2TANK";
+        const string O2GEN = "O2GEN";
+
+        // what an opportunity to refactor the code ..
+
+        readonly BlockAction TimeAction = new BlockAction(
+            LCD_NAME, lcd => (lcd as IMyTextPanel)
+            ?.WritePublicText(" " + DateTime.UtcNow.ToLongTimeString()));
+
+        readonly BlockAction O2GenOnAction = new BlockAction(
+            O2GEN, gen => gen?.ApplyAction("OnOff_On"));
+
+        readonly BlockAction O2TankOffAction = new BlockAction(
+            O2TANK, tank => tank?.ApplyAction("OnOff_Off"));
+
+        readonly BlockAction O2TankOnAction = new BlockAction(
+            O2TANK, tank => tank?.ApplyAction("OnOff_On"));
+
+        readonly BlockAction O2GenOffAction = new BlockAction(
+           O2GEN, gen => gen?.ApplyAction("OnOff_Off"));
+
+        List<BlockState> states;
+
+        public Program()
+        {
+            states = new List<BlockState>();
+            //state entry points
+            var idle = new BlockState("IDLE", TimeAction, (float)5.0);
+            var openState = new BlockState("OPEN", LIGHT_BACK,
+                    light => light?.ApplyAction("OnOff_On"), (float)0.5);
+            var closeState = new BlockState("CLOSE", LIGHT_BACK,
+                    light => light?.ApplyAction("OnOff_Off"), (float)0.5);
 
             //idle loop
             states.SetUpSequence(new[] {
@@ -126,31 +129,24 @@ namespace MinerScript
                     (float)5.0),
                 idle});
 
-
-            var openState = new BlockState("OPEN", LIGHT_BACK,
-                    light => light?.ApplyAction("OnOff_On"), (float)0.5);
-
             //open sequence
             states.SetUpSequence(new[] {
                openState,
                 new BlockState("O2GEN OFF O", O2GenOffAction, (float)0.5),
                 new BlockState("O2TANK ON O", O2TankOnAction, (float)0.5),
-                new BlockState("DEPRESSURIZE", AIR_VENT_NAME, 
+                new BlockState("DEPRESSURIZE", AIR_VENT_NAME,
                     vent => vent?.ApplyAction("Depressurize_On"), (float)1.0),
-                new BlockState( "OPEN DOOR", DOOR_NAME, 
+                new BlockState( "OPEN DOOR", DOOR_NAME,
                     door => door?.ApplyAction("Open_On"), (float)7.0),
                 new BlockState( "O2TANK OFF O", O2TankOffAction, (float)0.5),
                 new BlockState( "O2GEN ON O", O2GenOnAction, (float)0.5),
                 idle
              });
 
-            var closeState = new BlockState("CLOSE", LIGHT_BACK,
-                    light => light?.ApplyAction("OnOff_Off"), (float)0.5);
-
             ///close sequence
             states.SetUpSequence(new[] {
                 closeState,
-                new BlockState("CLOSE DOOR", DOOR_NAME, 
+                new BlockState("CLOSE DOOR", DOOR_NAME,
                     door => door?.ApplyAction("Open_Off"), (float)1.0),
                 new BlockState("O2GEN OFF C", O2GenOffAction, (float)0.5),
                 new BlockState("O2TANK ON C", O2TankOnAction, (float)0.5),
@@ -170,23 +166,23 @@ namespace MinerScript
                     gear?.SetValueBool("Autolock", false);
                     gear?.ApplyAction("Unlock");},
                     (float)1.0),
-                new BlockState("DAMPENERS OFF", CONTROL_STAT, 
+                new BlockState("DAMPENERS OFF", CONTROL_STAT,
                     control => control?.SetValueBool("DampenersOverride", false), (float)0.5),
-                new BlockState("THRUST INC", THRUST, 
+                new BlockState("THRUST INC", THRUST,
                     thrust => {
                     thrust?.ApplyAction("IncreaseOverride");
                     thrust?.ApplyAction("IncreaseOverride");
                     thrust?.ApplyAction("IncreaseOverride");},
                     (float)0.5),
-                new BlockState("THRUST DEC", THRUST, 
+                new BlockState("THRUST DEC", THRUST,
                     thrust => {
                         thrust?.ApplyAction("DecreaseOverride");
                         thrust?.ApplyAction("DecreaseOverride");
-                        thrust?.ApplyAction("DecreaseOverride");}, 
+                        thrust?.ApplyAction("DecreaseOverride");},
                     (float)10.0),
-                new BlockState("HATCH ON", HATCH, 
+                new BlockState("HATCH ON", HATCH,
                     hatch => hatch?.ApplyAction("OnOff_On"), (float)1.0),
-                new BlockState("AUTOLOCK", GEAR_NAME, 
+                new BlockState("AUTOLOCK", GEAR_NAME,
                     gear => {
                        gear?.ApplyAction("OnOff_On");
                        gear?.SetValueBool("Autolock", true); },
@@ -196,7 +192,7 @@ namespace MinerScript
 
             //attach sequence
             states.SetUpSequence(new[] {
-                new BlockState("ATTACH", GEAR_NAME, 
+                new BlockState("ATTACH", GEAR_NAME,
                     gear => {
                         gear?.ApplyAction("OnOff_On");
                         // if the ship was just merged the old lock state is corrupted.  
@@ -207,13 +203,16 @@ namespace MinerScript
                         gear?.SetValueBool("Autolock", true);
                         gear?.ApplyAction("Lock"); },
                     (float)0.5),
-                new BlockState("HATCH OFF", HATCH, 
+                new BlockState("HATCH OFF", HATCH,
                     hatch => hatch?.ApplyAction("OnOff_Off"), (float)1.0),
-                new BlockState("GYRO OFF", GYRO, 
+                new BlockState("GYRO OFF", GYRO,
                     gyro => gyro?.ApplyAction("OnOff_Off"), (float)0.5),
                 openState
             });
+        }
 
+        public void Main(string eventName)
+        {
             if (string.IsNullOrEmpty(eventName))
             {
                 var state_name = GetString(this);
