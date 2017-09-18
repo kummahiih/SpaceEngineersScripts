@@ -103,6 +103,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IdleLoop.cs" />
     <Compile Include="old\ActionSystem.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsMainRecursion.cs" />
     <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
