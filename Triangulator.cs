@@ -91,9 +91,11 @@ namespace PositionTest
                     var remote_2 = this.GridTerminalSystem.GetBlockWithName(REMOTE_2_NAME);
                     if (camera_2 == null || remote_2 == null) return;
 
+
                     var pos_2 = camera_2.GetPosition();
                     var direction_2 = pos_2  - remote_2.GetPosition();
-                    double closest_dist = -1;
+
+                    double closest_dist2 = -1;
                     var closest_point = pos_1;
                     foreach(var multiplier in new[] {
                         11.0, 23.0,
@@ -110,17 +112,21 @@ namespace PositionTest
                     }){
                         for(int i=1;i <= 5;i++)
                         {
-                            var p_1 = pos_1 + direction_1 * i*multiplier;
-                            var p_2 = pos_2 + direction_2 * i*multiplier;
+                            var p = pos_1 + direction_1 * i*multiplier;
+                            var a = pos_2;
 
-                            var dist = VRageMath.Vector3D.Distance(p_1, p_2);
+                            var n = direction_2;
+                            var proj = (a-p).Dot(n) / n.Dot(n) *n;
                             
-                            (lcd as IMyTextPanel)?.WritePublicText(dist.ToString("f2")+"\n", append:true);
+                            var dist2 = ((a-p) - proj).LengthSquared();
 
-                            if(closest_dist<0 || dist <= closest_dist )
+                            
+                            (lcd as IMyTextPanel)?.WritePublicText(dist2.ToString("f2")+"\n", append:true);
+
+                            if(closest_dist2<0 || dist2 <= closest_dist2 )
                             {
-                                closest_dist = dist;
-                                closest_point = p_1;
+                                closest_dist2 = dist2;
+                                closest_point = p;
                             }
                         }
                     }
