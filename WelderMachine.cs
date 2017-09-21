@@ -11,17 +11,17 @@ namespace WelderMachine
 {
     class Program : MyGridProgram
     {
-        #region copymeto programmable block   
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere   
+        #region copymeto programmable block    
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere    
 
-        //run the programmable block with the state name as a parameter   
+        //run the programmable block with the state name as a parameter    
 
-        /*  
-        idle loop:  
-         time(idle)  
-         list all named blocks(blocks)  
-         list all registered states(ls)  
-  
+        /*   
+        idle loop:   
+         time(idle)   
+         list all named blocks(blocks)   
+         list all registered states(ls)   
+   
         */
 
 
@@ -31,11 +31,18 @@ namespace WelderMachine
         const string GRINDER_NAME = "Torpedo Grinder";
 
 
+
         const string WELDERGROUP = "Welders";
         const string GRAVITYGENS = "Launch Gravity";
 
 
-        // what an opportunity to refactor the code ..  
+        const string O2TANK = "O2TANK";
+        const string O2GEN = "O2GEN";
+        const string AIR_VENT_NAME = "AIR VENT";
+        const string DOOR_NAME = "DOOR";
+
+
+        // what an opportunity to refactor the code ..   
 
         readonly BlockAction TimeAction = new BlockAction(
             LCD_NAME, lcd => (lcd as IMyTextPanel)
@@ -51,10 +58,10 @@ namespace WelderMachine
             };
             return new BlockAction(name, action);
         }
-        
 
 
-        // what an opportunity to refactor the code ..  
+
+        // what an opportunity to refactor the code ..   
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
@@ -64,12 +71,12 @@ namespace WelderMachine
         public Program()
         {
             states = new List<NamedState>();
-            //state entry points  
+            //state entry points   
             var idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
 
 
-            //idle loop  
+            //idle loop   
             states.SetUpSequence(new[] {
             idle,
                 new NamedState("time", TimeAction, 5.0),
@@ -111,11 +118,11 @@ namespace WelderMachine
             idle});
 
 
-            var weld = new NamedState("WELD", ClearLCDAction, 5.0);
+            var weld = new NamedState("WELD", ClearLCDAction, 0.1);
 
-            //WELDERGROUP  
-            //GRAVITYGENS  
-            //GRINDER_NAME  
+            //WELDERGROUP   
+            //GRAVITYGENS   
+            //GRINDER_NAME   
             states.SetUpSequence(new[] {
             weld,
             new NamedState( "welders_on", WELDERGROUP,
@@ -125,7 +132,7 @@ namespace WelderMachine
                 },
                 delay:0.1),
                 new NamedState( "welders_off", WELDERGROUP,
-                    group_action :blocks => {                        
+                    group_action :blocks => {
                         foreach (var block in blocks)
                             block.ApplyAction("OnOff_Off");
                     },
@@ -138,7 +145,7 @@ namespace WelderMachine
                     grinder =>  grinder.ApplyAction("OnOff_Off"),
                  7),
                  new NamedState("gravity_on", GRAVITYGENS,
-                    group_action :blocks => {                       
+                    group_action :blocks => {
                         foreach (var block in blocks)
                             block.ApplyAction("OnOff_On");
                     },
@@ -150,6 +157,31 @@ namespace WelderMachine
                     },
                  delay:2),
             idle });
+
+            var open = new NamedState("OPEN", ClearLCDAction, 0.1);
+            states.SetUpSequence(new[] {
+                open,
+                new NamedState("ox_gen_off_o",O2GEN, b => b.ApplyAction("OnOff_Off"),0.1),
+                new NamedState("ox_tank_on_o",O2TANK, b => b.ApplyAction("OnOff_On"),0.1),
+                new NamedState("depress",AIR_VENT_NAME, b => b.ApplyAction("Depressurize_On"),0.1),
+                new NamedState("open_door",DOOR_NAME, b => b.ApplyAction("Open_On"),2.0),
+                new NamedState("ox_tank_off_o",O2TANK, b => b.ApplyAction("OnOff_Off"),0.1),
+                new NamedState("ox_gen_on_o",O2GEN, b => b.ApplyAction("OnOff_On"),0.1),
+                idle
+            });
+
+            var close = new NamedState("CLOSE", ClearLCDAction, 0.1);
+            states.SetUpSequence(new[] {
+                close,
+                new NamedState("ox_gen_off_c",O2GEN, b => b.ApplyAction("OnOff_Off"),0.1),
+                new NamedState("ox_tank_on_c",O2TANK, b => b.ApplyAction("OnOff_On"),0.1),
+                new NamedState("close_door",DOOR_NAME, b => b.ApplyAction("Open_Off"),0.1),
+                new NamedState("press",AIR_VENT_NAME, b => b.ApplyAction("Depressurize_Off"),0.1),
+                new NamedState("ox_tank_off_c",O2TANK, b => b.ApplyAction("OnOff_Off"),2.0),
+                new NamedState("ox_gen_on_c",O2GEN, b => b.ApplyAction("OnOff_On"),0.1),
+                idle
+            });
+
         }
 
 
@@ -222,7 +254,7 @@ namespace WelderMachine
     }
 
 
-        public class BlockAction: NamedAction
+    public class BlockAction : NamedAction
     {
         override public string Name { get; }
         private Action<IMyTerminalBlock> _action { get; }
@@ -320,6 +352,7 @@ namespace WelderMachine
             return states;
         }
         #endregion
+
 
     }// Omit this last closing brace as the game will add it back in
 }
