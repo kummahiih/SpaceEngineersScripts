@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace MoveTest
 {
     class Program : MyGridProgram
     {
@@ -27,7 +27,7 @@ namespace IdleLoop
         const string TIMER_NAME = "STATE TIMER";
         const string LCD_NAME = "STATE LCD";
         const string IDLE_STATE_NAME = "IDLE";
-     
+
 
         // what an opportunity to refactor the code ..
 
@@ -35,27 +35,10 @@ namespace IdleLoop
             LCD_NAME, lcd => (lcd as IMyTextPanel)
             ?.WritePublicText(" " + DateTime.UtcNow.ToLongTimeString()));
 
-        BlockAction CheckTarget(string name)
-        {
-            Action<IMyTerminalBlock> action = block =>
-            {
-                var lcd_block = this.GridTerminalSystem.GetBlockWithName(LCD_NAME);
-                var lcd = (lcd_block as IMyTextPanel);
-                lcd?.WritePublicText(" '" + name + "' FOUND:\n" + block.DetailedInfo, append: true);
-            };
-            return new BlockAction(name, action);
-        }
-
-
-        // what an opportunity to refactor the code ..
-        readonly BlockAction ClearLCDAction = new BlockAction(
-           LCD_NAME, lcd => (lcd as IMyTextPanel)
-           ?.WritePublicText("", append: false));
-
         List<BlockState> states;
 
         public Program()
-        {            
+        {
             states = new List<BlockState>();
             //state entry points
             var idle = new BlockState(IDLE_STATE_NAME, null, 5.0);
@@ -152,11 +135,6 @@ namespace IdleLoop
             _action = action;
         }
     }
-    public class ActionBase
-    {
-
-    }
-
     public class BlockState
     {
         public BlockAction BlockAction { get; }
@@ -212,7 +190,5 @@ namespace IdleLoop
             return states;
         }
         #endregion
-
-
     }// Omit this last closing brace as the game will add it back in
 }

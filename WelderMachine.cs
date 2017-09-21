@@ -7,29 +7,35 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace WelderMachine
 {
     class Program : MyGridProgram
     {
-        #region copymeto programmable block 
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere 
+        #region copymeto programmable block   
+        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere   
 
-        //run the programmable block with the state name as a parameter 
+        //run the programmable block with the state name as a parameter   
 
-        /*
-        idle loop:
-         time(idle)
-         list all named blocks(blocks)
-         list all registered states(ls)
-
+        /*  
+        idle loop:  
+         time(idle)  
+         list all named blocks(blocks)  
+         list all registered states(ls)  
+  
         */
+
 
         const string TIMER_NAME = "STATE TIMER";
         const string LCD_NAME = "STATE LCD";
         const string IDLE_STATE_NAME = "IDLE";
-     
+        const string GRINDER_NAME = "Torpedo Grinder";
 
-        // what an opportunity to refactor the code ..
+
+        const string WELDERGROUP = "Welders";
+        const string GRAVITYGENS = "Launch Gravity";
+
+
+        // what an opportunity to refactor the code ..  
 
         readonly BlockAction TimeAction = new BlockAction(
             LCD_NAME, lcd => (lcd as IMyTextPanel)
@@ -46,8 +52,7 @@ namespace IdleLoop
             return new BlockAction(name, action);
         }
 
-
-        // what an opportunity to refactor the code ..
+        // what an opportunity to refactor the code ..  
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
@@ -55,12 +60,14 @@ namespace IdleLoop
         List<BlockState> states;
 
         public Program()
-        {            
+        {
             states = new List<BlockState>();
-            //state entry points
-            var idle = new BlockState(IDLE_STATE_NAME, null, 5.0);
+            //state entry points  
+            var idle = new BlockState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
-            //idle loop
+
+
+            //idle loop  
             states.SetUpSequence(new[] {
             idle,
                 new BlockState("time", TimeAction, 5.0),
@@ -84,7 +91,77 @@ namespace IdleLoop
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 5.0),
             idle});
+
+
+            var weld = new BlockState("WELD", ClearLCDAction, 5.0);
+
+            //WELDERGROUP  
+            //GRAVITYGENS  
+            //GRINDER_NAME  
+            states.SetUpSequence(new[] {
+            weld,
+            new BlockState( "welders_on", LCD_NAME,
+                lcd => {
+                    (lcd as IMyTextPanel)?.WritePublicText("", append:false);
+                    var group = this.GridTerminalSystem.GetBlockGroupWithName(WELDERGROUP);
+                    if(group == null)
+                        return;
+                    var blocks = new List<IMyTerminalBlock>();
+                    group.GetBlocks(blocks);
+                    foreach (var block in blocks)
+                        block.ApplyAction("OnOff_On");
+                },
+                0.1),
+                new BlockState( "welders_off", LCD_NAME,
+                    lcd => {
+                        (lcd as IMyTextPanel)?.WritePublicText("", append:false);
+                        var group = this.GridTerminalSystem.GetBlockGroupWithName(WELDERGROUP);
+                        if(group == null)
+                            return;
+                        var blocks = new List<IMyTerminalBlock>();
+                        group.GetBlocks(blocks);
+
+                        foreach (var block in blocks)
+                            block.ApplyAction("OnOff_Off");
+                    },
+                 3),
+
+                new BlockState("grinder_on", GRINDER_NAME,
+                    grinder =>  grinder.ApplyAction("OnOff_On"),
+                 0.1),
+                 new BlockState("grinder_off", GRINDER_NAME,
+                    grinder =>  grinder.ApplyAction("OnOff_Off"),
+                 7),
+                 new BlockState("gravity_on", LCD_NAME,
+                    lcd => {
+                        (lcd as IMyTextPanel)?.WritePublicText("", append: false);
+                        var group = this.GridTerminalSystem.GetBlockGroupWithName(GRAVITYGENS);
+                        if (group == null)
+                            return;
+                        var blocks = new List<IMyTerminalBlock>();
+                        group.GetBlocks(blocks);
+
+                        foreach (var block in blocks)
+                            block.ApplyAction("OnOff_On");
+                    },
+                 0.1),
+                 new BlockState("gravity_off", LCD_NAME,
+                    lcd => {
+                        (lcd as IMyTextPanel)?.WritePublicText("", append: false);
+                        var group = this.GridTerminalSystem.GetBlockGroupWithName(GRAVITYGENS);
+                        if (group == null)
+                            return;
+                        var blocks = new List<IMyTerminalBlock>();
+                        group.GetBlocks(blocks);
+
+                        foreach (var block in blocks)
+                            block.ApplyAction("OnOff_Off");
+                    },
+                 2),
+            idle });
         }
+
+
 
         public void Main(string eventName)
         {
@@ -152,10 +229,8 @@ namespace IdleLoop
             _action = action;
         }
     }
-    public class ActionBase
-    {
 
-    }
+
 
     public class BlockState
     {
@@ -212,7 +287,6 @@ namespace IdleLoop
             return states;
         }
         #endregion
-
 
     }// Omit this last closing brace as the game will add it back in
 }

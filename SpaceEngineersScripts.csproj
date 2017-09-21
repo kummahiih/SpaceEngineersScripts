@@ -104,6 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IdleLoop.cs" />
+    <Compile Include="MovingTest.cs" />
     <Compile Include="old\ActionSystem.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsMainRecursion.cs" />
     <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
@@ -124,6 +125,7 @@
     <Compile Include="old\TimedSorter.cs" />
     <Compile Include="old\TimedSorter2.cs" />
     <Compile Include="old\TimedWelderWithMerge.cs" />
+    <Compile Include="WelderMachine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
