@@ -67,7 +67,7 @@ namespace RayCasterShip
             lcd?.WritePublicText(text, true);
             lcd?.ShowPublicTextOnScreen();
         }
-
+        private StringBuilder sb = new StringBuilder();
         List<NamedState> states;
 
         public Program()
@@ -145,12 +145,12 @@ namespace RayCasterShip
             });
 
 
-            var scan_check = new NamedState("SCAN_CHECK", TimeAction, 0.1);
+            var scan_check = new NamedState("PREPARE SCAN", TimeAction, 0.1);
             states.SetUpSequence(new[] {
                 scan_check,
                 new NamedState("check_lcd",block_action:CheckBlock(POSITIONS_LCD), delay:0.1),
                 new NamedState("check_camera",block_action:CheckBlock(CAMERA_NAME), delay:0.1),
-                new NamedState("range_check", CAMERA_NAME, action:
+                new NamedState("switch_raycast", CAMERA_NAME, action:
                     camera_block =>
                     {
                         var camera = camera_block as IMyCameraBlock;
@@ -159,9 +159,9 @@ namespace RayCasterShip
                         var limit = camera.RaycastDistanceLimit;
                         PrintToStateLcd("scan limin: " + limit + "\n");
                         if(camera.EnableRaycast)
-                            PrintToStateLcd("scan is charging\n");
+                            PrintToStateLcd("scan is now charging\n");
                         else
-                            PrintToStateLcd("can charge was stopped\n");
+                            PrintToStateLcd("scan charge was terminated\n");
 
                     },
                     delay:0.1),
@@ -201,11 +201,9 @@ namespace RayCasterShip
                     },
                     delay:0.1),
                 stop });
-
-
         }
 
-        private StringBuilder sb = new StringBuilder();
+
 
 
 
