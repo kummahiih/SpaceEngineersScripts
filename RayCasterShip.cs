@@ -53,10 +53,7 @@ namespace RayCasterShip
             };
             return new BlockAction(name, action);
         }
-
-
-
-        // what an opportunity to refactor the code ..   
+ 
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
@@ -73,7 +70,7 @@ namespace RayCasterShip
         public Program()
         {
             states = new List<NamedState>();
-
+            #region idle and diagnostic
             var idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
             var stop = new NamedState("STOP", null, 1);
             states.Add(stop);
@@ -118,7 +115,7 @@ namespace RayCasterShip
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
             idle});
-
+            #endregion
 
             var open = new NamedState("OPEN", ClearLCDAction, 0.1);
             states.SetUpSequence(new[] {
