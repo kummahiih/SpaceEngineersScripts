@@ -11,34 +11,37 @@ namespace IdleLoop
 {
     class Program : MyGridProgram
     {
-        #region copymeto programmable block    
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere    
-
-        //run the programmable block with the state name as a parameter    
-
-        /*   
-        idle loop:   
-         time(idle)   
-         list all named blocks(blocks)   
-         list all registered states(ls)   
-   
+        #region copymeto programmable block
+        /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT)
+         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/
+         * The state transition timer '<TIMER_NAME>' and the state persistence lcd '<LCD_NAME>'
+         * are are critical for the functionality of the program and they had to be set up 
+         * manually before any diagnostics can be done.
+         * 
+         * Set the '<TIMER_NAME>' timer to run the programmable block with empty argument
+         * and set '<LCD_NAME>' to show public text on the screen.
+         * Run the programmable block with the state name as a parameter. 
+         * For diagnostics run 'IDLE'.
+         * 
+         * <description> (<state name>) ...
+         * 
+         * stop loop (STOP)
+         * 
+         * idle loop (IDLE):   
+         *  time(time)   
+         *  list all used named blocks (blocks)
+         *  list all used named groups (groups)
+         *  list all registered states (ls)   
         */
 
+        // what an opportunity to refactor the code ..
+
+        #region idle loop and stop
 
         const string TIMER_NAME = "STATE TIMER";
         const string LCD_NAME = "STATE LCD";
         const string IDLE_STATE_NAME = "IDLE";
 
-        const string CAMERA_NAME = "SCANNER";
-
-
-        double SCAN_DISTANCE = 100;
-        float PITCH = 0;
-        float YAW = 0;
-
-        // what an opportunity to refactor the code ..   
-
-        // what an opportunity to refactor the code ..   
         readonly BlockAction StopAction = new BlockAction(
            TIMER_NAME, timer => (timer as IMyTimerBlock)
            ?.ApplyAction("Stop"));
@@ -46,18 +49,14 @@ namespace IdleLoop
         readonly BlockAction TimeAction = new BlockAction(
             LCD_NAME, lcd => (lcd as IMyTextPanel)
             ?.WritePublicText(" " + DateTime.UtcNow.ToLongTimeString()));
-
-        // what an opportunity to refactor the code ..   
+ 
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
 
-        List<NamedState> states;
-
-        public Program()
+        void SetUpIdleAndStop()
         {
-            states = new List<NamedState>();
-            states.Add(new NamedState("Stop", StopAction, 0.1));
+            states.Add(new NamedState("STOP", StopAction, 0.1));
             //state entry points   
             var idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
@@ -67,29 +66,33 @@ namespace IdleLoop
                 new NamedState("time", TimeAction, 5.0),
                 new NamedState( "blocks", LCD_NAME,
                 action:lcd => {
-                    (lcd as IMyTextPanel)?.WritePublicText("");
-                    states
+                    sb.Clear();
+                    foreach(var name in states
                         .Where(s => s.NamedAction  is BlockAction )
                         .Select(s => s.NamedAction?.Name)
-                        .Distinct()
-                        .ForEach(name => {
-                            var found_text =
-                                this.GridTerminalSystem.GetBlockWithName(name) == null ? "\n" : " FOUND\n";
-                            (lcd as IMyTextPanel)?.WritePublicText("'" + name + "'" + found_text, true);
-                        }); },
+                        .Distinct())
+                    {
+                        var found_text =
+                            this.GridTerminalSystem.GetBlockWithName(name) == null ? "" : " FOUND";
+                        sb.Append("'" + name + "'" + found_text+"\n");
+                    }
+                    (lcd as IMyTextPanel)?.WritePublicText(sb.ToString(), append:false);
+                },
                 delay:5.0),
                 new NamedState( "groups", LCD_NAME,
                 action:lcd => {
-                    (lcd as IMyTextPanel)?.WritePublicText("");
-                    states
+                    sb.Clear();
+                    foreach(var name in states
                         .Where(s => s.NamedAction  is GroupAction )
                         .Select(s => s.NamedAction?.Name)
-                        .Distinct()
-                        .ForEach(name => {
-                            var found_text =
-                                this.GridTerminalSystem.GetBlockGroupWithName(name) == null ? "\n" : " FOUND\n";
-                            (lcd as IMyTextPanel)?.WritePublicText("'" + name + "'" + found_text, true);
-                        }); },
+                        .Distinct())
+                    { 
+                        var found_text =
+                            this.GridTerminalSystem.GetBlockGroupWithName(name) == null ? "" : " FOUND";
+                        sb.Append("'" + name + "'" + found_text + "\n");
+                    }
+                    (lcd as IMyTextPanel)?.WritePublicText(sb.ToString(), append:false);
+                },
                 delay:5.0),
 
             new NamedState( "ls", LCD_NAME,
@@ -98,7 +101,15 @@ namespace IdleLoop
                 delay:5.0),
             idle});
         }
+        #endregion
 
+        #region transition logic
+        private List<NamedState> states = new List<NamedState>();
+        public Program()
+        {
+            states.Clear();
+            SetUpIdleAndStop();
+        }
 
         public void Main(string eventName)
         {
@@ -132,14 +143,16 @@ namespace IdleLoop
             state.NamedAction?.Invoke(this);
             StartTimer(state.Next);
         }
+        #endregion
 
+        #region state persistence
         public void SaveString(string text)
         {
             var lcd = GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
             if (lcd == null) return;
             lcd.WritePublicTitle(text);
             lcd.WritePublicText(" -> " + text + "\n", true);
-        }
+        }        
 
         public static string GetString(MyGridProgram env)
         {
@@ -147,8 +160,19 @@ namespace IdleLoop
             if (lcd == null) return null;
             return lcd.GetPublicTitle();
         }
-    }
+        #endregion
+        #region convenience  functions
+        private StringBuilder sb = new StringBuilder();
 
+        void PrintToStateLcd(string text, string lcd_name = LCD_NAME)
+        {
+            var lcd = this.GridTerminalSystem.GetBlockWithName(lcd_name) as IMyTextPanel;
+            lcd?.WritePublicText(text, true);
+            lcd?.ShowPublicTextOnScreen();
+        }
+        #endregion
+    }
+    #region action and state classes
     public class GroupAction : NamedAction
     {
         override public string Name { get; }
@@ -192,8 +216,6 @@ namespace IdleLoop
         abstract public void Invoke(MyGridProgram env);
     }
 
-
-
     public class NamedState
     {
         public NamedAction NamedAction { get; }
@@ -235,7 +257,8 @@ namespace IdleLoop
             "'" + Name + "':'" + NamedAction?.Name + "'" +
             (Next != null ? (" -> " + "'" + Next.Name + "'") : "");
     }
-
+    #endregion
+    #region convenience extensions
     public static class Ext
     {
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
@@ -248,7 +271,6 @@ namespace IdleLoop
 
             action(blocks);
         }
-
 
         public static List<NamedState> SetUpSequence(this List<NamedState> states,
             IEnumerable<NamedState> registered_states)
@@ -266,7 +288,6 @@ namespace IdleLoop
             return states;
         }
         #endregion
-
-
+        #endregion
     }// Omit this last closing brace as the game will add it back in
 }

@@ -33,6 +33,8 @@ namespace RayCasterShip
         const string CAMERA_NAME = "SCANNER";
         const string POSITIONS_LCD = "POSITIONS LCD";
 
+        const string DISTANCE_SCALING_LCD = "SCALING LCD";
+
         const string O2TANK = "O2TANK";
         const string O2GEN = "O2GEN";
         const string AIR_VENT_NAME = "AIR VENT";
@@ -116,7 +118,7 @@ namespace RayCasterShip
                 delay:5.0),
             idle});
             #endregion
-
+            #region air vent
             var open = new NamedState("OPEN", ClearLCDAction, 0.1);
             states.SetUpSequence(new[] {
                 open,
@@ -140,8 +142,8 @@ namespace RayCasterShip
                 new NamedState("ox_gen_on_c",O2GEN, b => b.ApplyAction("OnOff_On"),0.1),
                 idle
             });
-
-
+            #endregion
+            #region ray scan
             var scan_check = new NamedState("PREPARE SCAN", TimeAction, 0.1);
             states.SetUpSequence(new[] {
                 scan_check,
@@ -198,6 +200,33 @@ namespace RayCasterShip
                     },
                     delay:0.1),
                 stop });
+            #endregion
+
+            states.SetUpSequence(new[] {
+                new NamedState("BLIND TARGET", ClearLCDAction, 0.1),
+                new NamedState("check_target_camera", CheckBlock(CAMERA_NAME),0.1),
+                new NamedState("check_target_lcd", CheckBlock(POSITIONS_LCD),0.1),
+                new NamedState("check_scaling_lcd", CheckBlock(DISTANCE_SCALING_LCD),0.1),
+                new NamedState("get_gps", DISTANCE_SCALING_LCD, action:lcd_block =>
+                {
+                    var lcd = (lcd_block as IMyTextPanel);
+                    var camera = this.GridTerminalSystem.GetBlockWithName(CAMERA_NAME);
+                    var target_lcd = this.GridTerminalSystem.GetBlockWithName(POSITIONS_LCD) as IMyTextPanel;
+                    if (camera == null || lcd == null || target_lcd == null) return;
+
+                    var multiplier = 0.0;
+                    if (!double.TryParse(lcd.GetPublicText(), out multiplier))
+                    {
+                        lcd.WritePublicText("\ncould not parse multiplier\n", true);
+                        return;
+                    }
+                    var l_pos = lcd.GetPosition();
+                    var c_pos = camera.GetPosition();
+                    var dest = c_pos + (c_pos - l_pos) * multiplier;
+                    target_lcd.WritePublicText(dest.AsGPS("target"));
+                },
+                delay:5.0),
+            stop});
         }
 
 
