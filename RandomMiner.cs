@@ -104,56 +104,61 @@ namespace RandomMiner
         }
         #endregion
 
-        #region random ball
+        #region mining
         const string REMOTE_CONTROL = "REMOTE CONTROL";
+
+        private void StorePointToRemote(
+            IMyRemoteControl rc, VRageMath.Vector3D target, string name)
+        {
+            PrintToStateLcd(target.AsGPS(name));
+            rc.AddWaypoint(target, name);
+        }
 
         void SetupPoints()
         {
             states.SetUpSequence(new[] {
-                new NamedState("3x3", ClearLCDAction, 0.1),
+                new NamedState("CROSS100", ClearLCDAction, 0.1),
                 new NamedState("check_remote_control", CheckBlock(REMOTE_CONTROL), 0.1),
-                new NamedState( "do10points", REMOTE_CONTROL, action:rc_block =>
+                new NamedState( "do_points", REMOTE_CONTROL, action:rc_block =>
                 {
                     var rc = rc_block as IMyRemoteControl;
                     if(rc == null) return;
-
-                    rc.ClearWaypoints();
 
                     var pos = rc.GetPosition();
 
                     var rc_v_f = rc.WorldMatrix.GetOrientation().Forward;
                     rc_v_f = rc_v_f / rc_v_f.Length();
 
-                    var rc_v_r = rc.WorldMatrix.GetOrientation().Left;
-                    rc_v_r = rc_v_r / rc_v_r.Length();
+                    var rc_v_l = rc.WorldMatrix.GetOrientation().Left;
+                    rc_v_l = rc_v_l / rc_v_l.Length();
 
                     var rc_v_d = rc.WorldMatrix.GetOrientation().Down;
                     rc_v_d = rc_v_d / rc_v_d.Length();
 
-                    var target = pos;
-                    for(int layer = 0; layer < 3; layer++)
-                    {
-                        var d_mul = -1;
-                        if(layer%2 == 0)
-                        d_mul = 1;
-                        for(int line = 0; line < 10; line ++)
-                        {
-                            var name = "2x10#"+(layer * 10 + line).ToString();
-                            PrintToStateLcd(target.AsGPS(name));
-                            rc.AddWaypoint(target, name);
-                            var f_mul = -1;
-                            if(line%2 == 0)
-                                f_mul = 1;
+                    rc.ClearWaypoints();
+                    var entrance = pos;
+                    StorePointToRemote(rc,entrance,"entrance");
+                    var bottom = entrance + rc_v_d * 2*100;
+                    StorePointToRemote(rc,bottom,"bottom");
+                    var center = entrance + rc_v_d * 2*50;
+                    StorePointToRemote(rc,center,"center");
+                    var rear = center -  rc_v_f * 2*50;
+                    StorePointToRemote(rc,rear,"rear");
+                    var front = center +  rc_v_f * 2*50;
+                    StorePointToRemote(rc,front,"front");
+                    StorePointToRemote(rc,center,"center");
+                    var left = center +  rc_v_l * 2*50;
+                    StorePointToRemote(rc, left, "left");
+                    var right = center -  rc_v_l * 2*50;
+                    StorePointToRemote(rc, right, "right");
+                    StorePointToRemote(rc,center,"center");
 
-                           target = target + f_mul*2*3*rc_v_f + d_mul*2*rc_v_r;
-                           
-                        }
-                        target = target + rc_v_d*2;
-                    }
                 },delay:1.0),
                 stop
             });
         }
+
+
 
         #endregion
 
