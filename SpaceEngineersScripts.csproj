@@ -74,6 +74,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ColonyShipStates.cs" />
+    <Compile Include="RandomMiner.cs" />
     <Compile Include="IdleLoop.cs" />
     <Compile Include="MovingTest.cs" />
     <Compile Include="old\ActionSystem.cs" />
