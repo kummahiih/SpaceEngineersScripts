@@ -119,7 +119,7 @@ namespace RandomMiner
             states.SetUpSequence(new[] {
                 new NamedState("CROSS100", ClearLCDAction, 0.1),
                 new NamedState("check_remote_control", CheckBlock(REMOTE_CONTROL), 0.1),
-                new NamedState( "do_points", REMOTE_CONTROL, action:rc_block =>
+                new NamedState( "do_cross_points", REMOTE_CONTROL, action:rc_block =>
                 {
                     var rc = rc_block as IMyRemoteControl;
                     if(rc == null) return;
@@ -156,6 +156,26 @@ namespace RandomMiner
                 },delay:1.0),
                 stop
             });
+
+            states.SetUpSequence(new[] {
+                new NamedState("LINE100", ClearLCDAction, 0.1),
+                new NamedState( "do_line_points", REMOTE_CONTROL, action:rc_block =>
+                {
+                     var rc = rc_block as IMyRemoteControl;
+                     if(rc == null) return;
+
+                     var pos = rc.GetPosition();
+                     var rc_v_f = rc.WorldMatrix.GetOrientation().Forward;
+                     rc_v_f = rc_v_f / rc_v_f.Length();
+
+                     rc.ClearWaypoints();
+                     StorePointToRemote(rc,pos,"start");
+                     StorePointToRemote(rc,pos+100*rc_v_f,"end");
+
+                },delay:1.0),
+                stop
+            });
+
         }
 
 
