@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ColonyShipStates.cs" />
+    <Compile Include="DoorForAki.cs" />
     <Compile Include="RandomMiner.cs" />
     <Compile Include="IdleLoop.cs" />
     <Compile Include="MovingTest.cs" />

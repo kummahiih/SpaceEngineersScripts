@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RandomMiner
+namespace DoorForAki
 {
     class Program : MyGridProgram
     {
@@ -53,17 +53,20 @@ namespace RandomMiner
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
-        NamedState stop = new NamedState("STOP", null, 1);
+
+        NamedState Stop;
+        NamedState Idle;
 
         void SetUpIdleAndStop()
         {
-            states.Add(stop);
+            Stop = new NamedState("STOP", StopAction, 0.1);
+            states.Add(Stop);
             //state entry points   
-            var idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
+            Idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
             //idle loop   
             states.SetUpSequence(new[] {
-            idle,
+            Idle,
                 new NamedState("time", TimeAction, 5.0),
                 new NamedState( "blocks", LCD_NAME,
                 action:lcd => {
@@ -100,117 +103,107 @@ namespace RandomMiner
                 action:lcd => (lcd as IMyTextPanel)?.WritePublicText(
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
-            idle});
+            Idle});
         }
         #endregion
 
-        #region mining
-        const string REMOTE_CONTROL = "REMOTE CONTROL";
+        #region door open and close
 
-        private void StorePointToRemote(
-            IMyRemoteControl rc, VRageMath.Vector3D target, string name)
+        const string HANGAR_GROUP = "hangar doors";
+        const string MERGE_GROUP = "door merge";
+        const string DOOR_PISTON_EXTRACT = "piston extract";
+        const string DOOR_PISTON_SIDE = "piston to side";
+
+        void SetupDoorLoops()
         {
-            PrintToStateLcd(target.AsGPS(name));
-            rc.AddWaypoint(target, name);
-        }
 
-        private static VRageMath.Vector3D GetForwardUV(IMyRemoteControl rc) 
-        {
-            var rc_v_f = rc.WorldMatrix.GetOrientation().Forward;
-            rc_v_f = rc_v_f / rc_v_f.Length();
-            return rc_v_f;
-        }
-
-
-        void SetupPoints()
-        {
             states.SetUpSequence(new[] {
-                new NamedState("CROSS100", ClearLCDAction, 0.1),
-                new NamedState("check_remote_control", CheckBlock(REMOTE_CONTROL), 0.1),
-                new NamedState( "do_cross_points", REMOTE_CONTROL, action:rc_block =>
-                {
-                    var rc = rc_block as IMyRemoteControl;
-                    if(rc == null) return;
-
-                    var pos = rc.GetPosition();
-
-                    var rc_v_f = GetForwardUV(rc);
-
-                    var rc_v_l = rc.WorldMatrix.GetOrientation().Left;
-                    rc_v_l = rc_v_l / rc_v_l.Length();
-
-                    var rc_v_d = rc.WorldMatrix.GetOrientation().Down;
-                    rc_v_d = rc_v_d / rc_v_d.Length();
-
-                    rc.ClearWaypoints();
-                    var entrance = pos;
-                    StorePointToRemote(rc,entrance,"entrance");
-                    var bottom = entrance + rc_v_d * 2*100;
-                    StorePointToRemote(rc,bottom,"bottom");
-                    var center = entrance + rc_v_d * 2*50;
-                    StorePointToRemote(rc,center,"center");
-                    var rear = center -  rc_v_f * 2*50;
-                    StorePointToRemote(rc,rear,"rear");
-                    var front = center +  rc_v_f * 2*50;
-                    StorePointToRemote(rc,front,"front");
-                    StorePointToRemote(rc,center,"center");
-                    var left = center +  rc_v_l * 2*50;
-                    StorePointToRemote(rc, left, "left");
-                    var right = center -  rc_v_l * 2*50;
-                    StorePointToRemote(rc, right, "right");
-                    StorePointToRemote(rc,center,"center");
-
-                },delay:1.0),
-                stop
+                new NamedState("CHECK DOOR", ClearLCDAction, 0.1),
+                new NamedState("check_hangar", CheckGroup(HANGAR_GROUP), 2),
+                new NamedState("check_piston_extract", CheckGroup(DOOR_PISTON_EXTRACT), 2),
+                new NamedState("check_piston_side", CheckGroup(DOOR_PISTON_SIDE), 2),
+                Stop
             });
 
             states.SetUpSequence(new[] {
-                new NamedState("LINE100", ClearLCDAction, 0.1),
-                new NamedState( "do_line_points", REMOTE_CONTROL, action:rc_block =>
+                new NamedState("OPEN DOOR", ClearLCDAction, 0.1),
+                new NamedState("open_hangar_doors",HANGAR_GROUP, group_action: blocks =>
                 {
-                     var rc = rc_block as IMyRemoteControl;
-                     if(rc == null) return;
-
-                     var pos = rc.GetPosition();
-                     var rc_v_f = GetForwardUV(rc);
-
-                     rc.ClearWaypoints();
-                     StorePointToRemote(rc,pos,"start");
-                     StorePointToRemote(rc,pos+100*rc_v_f,"end");
-
-                },delay:1.0),
-                stop
+                    foreach(var block in blocks)
+                    {
+                        block?.ApplyAction("OnOff_On");
+                        var hangar_door = block as IMyAirtightHangarDoor;
+                        hangar_door?.OpenDoor();
+                    }
+                }, delay:1.0),
+                new NamedState("unmerge_door",MERGE_GROUP, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        block?.ApplyAction("OnOff_Off");
+                    }
+                }, delay:15.0),
+                new NamedState("extract_piston_1", DOOR_PISTON_EXTRACT, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        PrintToStateLcd("Reversing\n");
+                        block?.ApplyAction("OnOff_On");
+                        block?.ApplyAction("Reverse");
+                    }
+                }, delay:5.0),
+                new NamedState("extract_piston_2", DOOR_PISTON_SIDE, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        PrintToStateLcd("Reversing\n");
+                        block?.ApplyAction("OnOff_On");
+                        block?.ApplyAction("Reverse");
+                    }
+                }, delay:45.0),
+                Stop
             });
 
             states.SetUpSequence(new[] {
-                new NamedState("20x20", ClearLCDAction, 0.1),
-                new NamedState( "do_line_points", REMOTE_CONTROL, action:rc_block =>
+                new NamedState("CLOSE DOOR", ClearLCDAction, 0.1),
+                                
+                new NamedState("retract_piston_2", DOOR_PISTON_SIDE, group_action: blocks =>
                 {
-                     var rc = rc_block as IMyRemoteControl;
-                     if(rc == null) return;
-
-                     var rc_v_f = GetForwardUV(rc);
-
-                     var rc_v_l = rc.WorldMatrix.GetOrientation().Left;
-                     rc_v_l = rc_v_l / rc_v_l.Length();
-
-                     rc.ClearWaypoints();
-                     var pos = rc.GetPosition();
-                     
-                     StorePointToRemote(rc,pos,"start");
-                     for(int i=0;i<10;i++)
-                     {
-                        StorePointToRemote(rc,pos, "p"+i.ToString());
-                        StorePointToRemote(rc,pos+rc_v_f*20, "t"+i.ToString());
-                        pos += rc_v_l*2;
-                     }
-                },delay:1.0),
-                stop
+                    foreach(var block in blocks)
+                    {
+                        PrintToStateLcd("Reversing\n");
+                        block?.ApplyAction("OnOff_On");
+                        block?.ApplyAction("Reverse");
+                    }
+                }, delay:1.0),
+                new NamedState("merge_door",MERGE_GROUP, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        block?.ApplyAction("OnOff_On");
+                    }
+                }, delay:30.0),
+                new NamedState("retract_piston_1", DOOR_PISTON_EXTRACT, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        PrintToStateLcd("Reversing\n");
+                        block?.ApplyAction("OnOff_On");
+                        block?.ApplyAction("Reverse");
+                    }
+                }, delay:1.0),
+                new NamedState("close_hangar_doors", HANGAR_GROUP, group_action: blocks =>
+                {
+                    foreach(var block in blocks)
+                    {
+                        block?.ApplyAction("OnOff_On");
+                        var hangar_door = block as IMyAirtightHangarDoor;
+                        hangar_door?.CloseDoor();
+                    }
+                }, delay:66.6),
+                Stop
             });
-
         }
-
-
 
 
         #endregion
@@ -221,7 +214,7 @@ namespace RandomMiner
         {
             states.Clear();
             SetUpIdleAndStop();
-            SetupPoints();
+            SetupDoorLoops();
         }
 
         public void Main(string eventName)
@@ -292,7 +285,14 @@ namespace RandomMiner
             };
             return new BlockAction(name, action);
         }
-
+        GroupAction CheckGroup(string name)
+        {
+            Action<List<IMyTerminalBlock>> action = blocks =>
+            {
+               PrintToStateLcd(" '" + name + "' FOUND:\n" + blocks.Count);
+            };
+            return new GroupAction(name, action);
+        }
         #endregion
     }
     #region action and state classes
@@ -384,11 +384,6 @@ namespace RandomMiner
     #region convenience extensions
     public static class Ext
     {
-        public static string AsGPS(this VRageMath.Vector3D position, string name)
-         => String.Format(
-             "GPS:{0}:{1:0.00}:{2:0.00}:{3:0.00}:\n",
-             name, position.X, position.Y, position.Z);
-
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
             => action(block);
 
