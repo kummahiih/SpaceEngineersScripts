@@ -74,11 +74,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ColonyShipStates.cs" />
-    <Compile Include="DoorForAki.cs" />
-    <Compile Include="RandomMiner.cs" />
+    <Compile Include="TimerScripts\ColonyShipStates.cs" />
+    <Compile Include="TimerScripts\DoorForAki.cs" />
+    <Compile Include="TimerScripts\RandomMiner.cs" />
     <Compile Include="IdleLoop.cs" />
-    <Compile Include="MovingTest.cs" />
+    <Compile Include="TimerScripts\MovingTest.cs" />
     <Compile Include="old\ActionSystem.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsMainRecursion.cs" />
     <Compile Include="ActionSystemPrototyping\PlainActionSystem.cs" />
@@ -86,21 +86,21 @@
     <Compile Include="base\EmptyScriptFile.cs" />
     <Compile Include="base\example.cs" />
     <Compile Include="ActionSystemPrototyping\IOAsEvents.cs" />
-    <Compile Include="LanderStateMachine.cs" />
+    <Compile Include="TimerScripts\LanderStateMachine.cs" />
     <Compile Include="old\DiscoDrone.cs" />
     <Compile Include="old\StateMachine.cs" />
     <Compile Include="old\miner.cs" />
     <Compile Include="old\Navigator.cs" />
-    <Compile Include="RayCasterShip.cs" />
-    <Compile Include="Triangulator.cs" />
-    <Compile Include="ScaledPositionTest.cs" />
+    <Compile Include="TimerScripts\RayCasterShip.cs" />
+    <Compile Include="TimerScripts\Triangulator.cs" />
+    <Compile Include="TimerScripts\ScaledPositionTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="base\ScriptBase.cs" />
     <Compile Include="old\RandomMover.cs" />
     <Compile Include="old\TimedSorter.cs" />
     <Compile Include="old\TimedSorter2.cs" />
     <Compile Include="old\TimedWelderWithMerge.cs" />
-    <Compile Include="WelderMachine.cs" />
+    <Compile Include="TimerScripts\WelderMachine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
