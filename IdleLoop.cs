@@ -49,20 +49,24 @@ namespace IdleLoop
         readonly BlockAction TimeAction = new BlockAction(
             LCD_NAME, lcd => (lcd as IMyTextPanel)
             ?.WritePublicText(" " + DateTime.UtcNow.ToLongTimeString()));
- 
+
         readonly BlockAction ClearLCDAction = new BlockAction(
            LCD_NAME, lcd => (lcd as IMyTextPanel)
            ?.WritePublicText("", append: false));
 
+        NamedState Stop;
+        NamedState Idle;
+
         void SetUpIdleAndStop()
         {
-            states.Add(new NamedState("STOP", StopAction, 0.1));
+            Stop = new NamedState("STOP", StopAction, 0.1);
+            states.Add(Stop);
             //state entry points   
-            var idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
+            Idle = new NamedState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
             //idle loop   
             states.SetUpSequence(new[] {
-            idle,
+            Idle,
                 new NamedState("time", TimeAction, 5.0),
                 new NamedState( "blocks", LCD_NAME,
                 action:lcd => {
@@ -86,7 +90,7 @@ namespace IdleLoop
                         .Where(s => s.NamedAction  is GroupAction )
                         .Select(s => s.NamedAction?.Name)
                         .Distinct())
-                    { 
+                    {
                         var found_text =
                             this.GridTerminalSystem.GetBlockGroupWithName(name) == null ? "" : " FOUND";
                         sb.Append("'" + name + "'" + found_text + "\n");
@@ -99,7 +103,7 @@ namespace IdleLoop
                 action:lcd => (lcd as IMyTextPanel)?.WritePublicText(
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
-            idle});
+            Idle});
         }
         #endregion
 
@@ -152,7 +156,7 @@ namespace IdleLoop
             if (lcd == null) return;
             lcd.WritePublicTitle(text);
             lcd.WritePublicText(" -> " + text + "\n", true);
-        }        
+        }
 
         public static string GetString(MyGridProgram env)
         {
@@ -169,6 +173,23 @@ namespace IdleLoop
             var lcd = this.GridTerminalSystem.GetBlockWithName(lcd_name) as IMyTextPanel;
             lcd?.WritePublicText(text, true);
             lcd?.ShowPublicTextOnScreen();
+        }
+
+        BlockAction CheckBlock(string name)
+        {
+            Action<IMyTerminalBlock> action = block =>
+            {
+                PrintToStateLcd(" '" + name + "' FOUND:\n" + block.DetailedInfo);
+            };
+            return new BlockAction(name, action);
+        }
+        GroupAction CheckGroup(string name)
+        {
+            Action<List<IMyTerminalBlock>> action = blocks =>
+            {
+                PrintToStateLcd(" '" + name + "' FOUND:\n" + blocks.Count);
+            };
+            return new GroupAction(name, action);
         }
         #endregion
     }
