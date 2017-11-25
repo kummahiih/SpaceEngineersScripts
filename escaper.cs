@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace Escaper
 {
     class Program : MyGridProgram
     {
@@ -68,17 +68,17 @@ namespace IdleLoop
                 {
                     PrintToStateLcd("stopping\n");
                     (timer as IMyTimerBlock)?.ApplyAction("Stop");
-                }, 
-                delay:0.1);
+                },
+                delay: 0.1);
             states.Add(Stop);
 
             Continue = new JumpState("CONTINUE", LCD_NAME, block_measure:
                 lcd =>
                 {
                     var next = GetNextStateName(this);
-                    PrintToStateLcd("continuing to '"+ next + "'\n");
+                    PrintToStateLcd("continuing to '" + next + "'\n");
                     return next;
-                }, delay:0.1);
+                }, delay: 0.1);
             states.Add(Continue);
 
             Idle = new ActionState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
@@ -137,16 +137,90 @@ namespace IdleLoop
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
             Idle});
-        } 
+        }
         #endregion
 
-        #region transition logic
+        #region scanner
+
+        const string SCANNER_CAMERA = "SCANNER CAMERA";
+        const string REMOTE_CONTROL = "REMOTE CONTROL";
+        const string ESCAPE_THRUSTER = "ESCAPE THRUSTER";
+        const double SCAN_RANGE = 30;
+
+        ActionState Escape;
+        ActionState EscapeChecksDone;
+
+        public void SetupEscape()
+        {
+            Escape = new ActionState("ESCAPE", ClearLCDAction, 1);
+            EscapeChecksDone = new ActionState("ESCAPE Checks done", ClearLCDAction, 1);
+            Register(new NamedState[]
+            {
+                Escape,
+                new ActionState("check_remote", CheckBlock(REMOTE_CONTROL), 1),
+                new ActionState("check_scanner", CheckBlock(SCANNER_CAMERA), 1),
+                new ActionState("check_truster", CheckBlock(ESCAPE_THRUSTER), 1),
+                new ActionState("enable raytrasting", SCANNER_CAMERA,
+                    action: camera_block => {
+                        var camera =camera_block as IMyCameraBlock;
+                        if(camera == null) return;
+                        camera.EnableRaycast = true;
+                    }, delay:1),
+                new ActionState("thruster_override_off", ESCAPE_THRUSTER,
+                    action: block => {
+                        var thrust =block as IMyThrust;
+                        if(thrust == null) return;
+                        thrust.ThrustOverridePercentage = 0;
+                    }, delay:1),
+                new ActionState("dampeners_on", REMOTE_CONTROL,
+                    action: block => {
+                        var rc =block as IMyRemoteControl;
+                        if(rc == null) return;
+                        rc.DampenersOverride = true;
+                    }, delay:1),
+                EscapeChecksDone,
+                new JumpState("SCAN", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                    {
+                        var camera = camera_block as IMyCameraBlock;
+                        if (camera == null) return Escape.Name;
+                        while(camera.CanScan(SCAN_RANGE))
+                        {
+                            var gen = new System.Random();
+                            float yaw = (float) (gen.NextDouble() * 90 - 45);
+                            float pitch = (float) (gen.NextDouble() * 90 - 45);
+                            var info = camera.Raycast(SCAN_RANGE, pitch, yaw);
+                            if(info.Type == MyDetectedEntityType.LargeGrid ||
+                               info.Type == MyDetectedEntityType.SmallGrid ||
+                               info.Type == MyDetectedEntityType.CharacterHuman )
+                            {
+                                PrintToStateLcd("Found!\n");
+                                return null;
+                            }                        
+                        }
+                        PrintToStateLcd("Can not make a scan yet\n");
+                        return "SCAN";
+                    },
+                    delay:1),
+                new ActionState("thruster_override", ESCAPE_THRUSTER, action: block => {
+                    var thrust =block as IMyThrust;
+                        if(thrust == null) return;
+                        thrust.ThrustOverridePercentage = 1;
+                }, delay:1),
+                Escape
+            });
+        }
+
+        #endregion
+
+            #region transition logic
         private List<NamedState> states = new List<NamedState>();
         public Program()
         {
             PrintToStateLcd("Initializing\n");
             states.Clear();
             SetUpIdleAndStop();
+            SetupEscape();
             PrintToStateLcd("Initialized\n");
         }
 
