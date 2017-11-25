@@ -7,16 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace Follower
 {
     class Program : MyGridProgram
     {
         #region copymeto programmable block
         /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT)
-         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ somewhere
-         * 
-         * All this his would be easier to do with yield, 
-         * but this is just a game script made for fun. 
+         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/
          * 
          * The state transition timer '<TIMER_NAME>' and the state persistence lcd '<LCD_NAME>'
          * are are critical for the functionality of the program and they had to be set up 
@@ -138,8 +135,103 @@ namespace IdleLoop
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
             Idle});
-        } 
+        }
         #endregion
+
+        #region following setup
+
+        const string REMOTE_CONTROL = "REMOTE CONTROL";
+        const string SCANNER_CAMERA = "SCANNER CAMERA";
+        const double SCAN_RANGE = 30;
+        const string TIME_FOR_MOVE = "Time for move";
+
+        ActionState Follow;
+
+        void SetupFollower()
+        {
+            Follow = new ActionState("FOLLOW", ClearLCDAction, 1);
+            Register(new NamedState[]
+            {
+                Follow,
+                new ActionState("check_remote", CheckBlock(REMOTE_CONTROL), 1),
+                new ActionState("check_scanner", CheckBlock(SCANNER_CAMERA), 1),
+                new ActionState("enable raytrasting", SCANNER_CAMERA, 
+                    action: camera_block => {
+                        var camera =camera_block as IMyCameraBlock;
+                        if(camera == null) return;
+                        camera.EnableRaycast = true;
+                    }, delay:1),
+                 new ActionState("reset remote", REMOTE_CONTROL, action:remote_block =>
+                 {
+                     var remote =  remote_block as IMyRemoteControl;
+                     if(remote == null) return;
+                     remote.ClearWaypoints();
+                     remote.SetAutoPilotEnabled( true);
+                     remote.ApplyAction("AutoPilot_Off");
+                     remote.ApplyAction("AutoPilot_On");
+                     remote.ApplyAction("AutoPilot_Off");
+
+                 }, delay:1.0),
+                new JumpState("SCAN0", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                    {
+                        return ScanAndGo(camera_block,pitch:0,yaw:0,scan_name:"SCAN0");
+                    },
+                    delay:1),
+                new JumpState("SCAN1", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                        ScanAndGo(camera_block,pitch:15,yaw:0, scan_name:"SCAN1"),
+                    delay:1),
+                new JumpState("SCAN2", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                        ScanAndGo(camera_block,pitch:-15,yaw:0, scan_name:"SCAN2"),
+                    delay:1),
+                new JumpState("SCAN3", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                        ScanAndGo(camera_block,pitch:30,yaw:0, scan_name:"SCAN3"),
+                    delay:1),
+                new JumpState("SCAN4", SCANNER_CAMERA,
+                    block_measure: camera_block =>
+                        ScanAndGo(camera_block,pitch:-30,yaw:0, scan_name:"SCAN4"),
+                    delay:1),
+                new JumpState("no moving", SCANNER_CAMERA, _ => Follow.Name,1),
+                new ActionState(TIME_FOR_MOVE,TimeAction,30),
+                Follow
+            });
+
+        }
+
+        private string ScanAndGo(IMyTerminalBlock camera_block, int pitch, int yaw, string scan_name)
+        {
+            var camera = camera_block as IMyCameraBlock;
+            var remote = GridTerminalSystem.GetBlockWithName(REMOTE_CONTROL) as IMyRemoteControl;
+            if (camera == null || remote == null) return Follow.Name;
+            if (!camera.CanScan(SCAN_RANGE))
+            {
+                PrintToStateLcd("Can not make a scan yet\n");
+                return scan_name;
+            }
+            foreach (var yaw_mod in new[] { -30, -15, 0, 15, 30 })
+            {
+                var info = camera.Raycast(SCAN_RANGE, pitch, yaw+ yaw_mod);
+
+
+                if (info.Type == MyDetectedEntityType.CharacterHuman)
+                {
+                    PrintToStateLcd("Found a player\n");
+                    PrintToStateLcd(info.Position.AsGPS("player"));
+
+                    remote.ClearWaypoints();
+                    remote.AddWaypoint(info.Position, "player");
+                    remote.FlightMode = FlightMode.Circle;
+                    remote.ApplyAction("AutoPilot_On");
+                    return TIME_FOR_MOVE;
+                }
+            }
+            return null;
+        }
+
+        #endregion following setup
 
         #region transition logic
         private List<NamedState> states = new List<NamedState>();
@@ -148,6 +240,7 @@ namespace IdleLoop
             PrintToStateLcd("Initializing\n");
             states.Clear();
             SetUpIdleAndStop();
+            SetupFollower();
             PrintToStateLcd("Initialized\n");
         }
 
@@ -436,6 +529,11 @@ namespace IdleLoop
     #region convenience extensions
     public static class Ext
     {
+        public static string AsGPS(this VRageMath.Vector3D position, string name)
+           => String.Format(
+               "GPS:{0}:{1:0.00}:{2:0.00}:{3:0.00}:\n",
+               name, position.X, position.Y, position.Z);
+
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
             => action(block);
 

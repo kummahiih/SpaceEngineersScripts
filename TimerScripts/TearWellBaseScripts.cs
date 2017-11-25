@@ -7,13 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace TearWellBaseScripts
 {
     class Program : MyGridProgram
     {
         #region copymeto programmable block
         /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT)
-         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ somewhere
+         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/         
          * 
          * All this his would be easier to do with yield, 
          * but this is just a game script made for fun. 
@@ -21,6 +21,7 @@ namespace IdleLoop
          * The state transition timer '<TIMER_NAME>' and the state persistence lcd '<LCD_NAME>'
          * are are critical for the functionality of the program and they had to be set up 
          * manually before any diagnostics can be done.
+         * 
          * 
          * Set the '<TIMER_NAME>' timer to run the programmable block with empty argument
          * and set '<LCD_NAME>' to show public text on the screen.
@@ -138,9 +139,45 @@ namespace IdleLoop
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
             Idle});
-        } 
+        }
         #endregion
 
+        #region open and close door
+
+        const string AIR_VENT_NAME = "FlightCtrl air vent";
+        const string AIR_VENT_NAME_2 = "FlightCtrl air vent2";
+        const string DOOR_NAME = "FlightCtrl Door";
+
+        ActionState Open;
+        ActionState Close;
+
+        public void SetupBaseDoor()
+        {
+            Open = new ActionState("OPEN", ClearLCDAction, 0.1);
+            Register(new[] {
+                Open,
+                new ActionState("depress",AIR_VENT_NAME, b => b.ApplyAction("Depressurize_On"),0.1),
+                new ActionState("open_door",DOOR_NAME, b => b.ApplyAction("Open_On"),5.0),
+                Idle
+            });
+            Close = new ActionState("CLOSE", ClearLCDAction, 0.1);
+            Register(new[] {
+                Close,
+                new ActionState("close_door",DOOR_NAME, b => b.ApplyAction("Open_Off"),0.1),
+                new ActionState("press",AIR_VENT_NAME, b => b.ApplyAction("Depressurize_Off"),0.1),
+                new ActionState("resuply_on",AIR_VENT_NAME_2, b => {
+                    b.ApplyAction("Depressurize_Off");
+                    b.ApplyAction("OnOff_On");
+                }, 5),
+                new ActionState("resuply_off",AIR_VENT_NAME_2, b => {
+                    b.ApplyAction("Depressurize_Off");
+                    b.ApplyAction("OnOff_Off");
+                }, 5),
+
+                Idle
+            });
+        }
+        #endregion
         #region transition logic
         private List<NamedState> states = new List<NamedState>();
         public Program()
@@ -148,6 +185,7 @@ namespace IdleLoop
             PrintToStateLcd("Initializing\n");
             states.Clear();
             SetUpIdleAndStop();
+            SetupBaseDoor();
             PrintToStateLcd("Initialized\n");
         }
 

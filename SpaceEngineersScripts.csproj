@@ -74,7 +74,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Follower.cs" />
+    <Compile Include="TimerScripts\TearWellBaseScripts.cs" />
+    <Compile Include="TimerScripts\Roller.cs" />
+    <Compile Include="TimerScripts\Follower.cs" />
     <Compile Include="TimerScripts\ColonyShipStates.cs" />
     <Compile Include="TimerScripts\DoorForAki.cs" />
     <Compile Include="TimerScripts\RandomMiner.cs" />

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Follower
+namespace Roller
 {
     class Program : MyGridProgram
     {
@@ -142,6 +142,7 @@ namespace Follower
 
         const string REMOTE_CONTROL = "REMOTE CONTROL";
         const string SCANNER_CAMERA = "SCANNER CAMERA";
+        const string GYROSCOPE = "GYROSCOPE";
         const double SCAN_RANGE = 30;
         const string TIME_FOR_MOVE = "Time for move";
 
@@ -165,7 +166,10 @@ namespace Follower
                  {
                      var remote =  remote_block as IMyRemoteControl;
                      if(remote == null) return;
-                     remote.SetAutoPilotEnabled(false);
+                     remote.ClearWaypoints();
+                     remote.ApplyAction("AutoPilot_Off");
+                     remote.ApplyAction("AutoPilot_On");
+                     remote.ApplyAction("AutoPilot_Off");
 
                  }, delay:1.0),
                 new JumpState("SCAN0", SCANNER_CAMERA,
@@ -217,10 +221,13 @@ namespace Follower
                     PrintToStateLcd("Found a player\n");
                     PrintToStateLcd(info.Position.AsGPS("player"));
 
+                    remote.Orientation.
+
+
                     remote.ClearWaypoints();
                     remote.AddWaypoint(info.Position, "player");
                     remote.FlightMode = FlightMode.Circle;
-                    remote.SetAutoPilotEnabled(true);
+                    remote.ApplyAction("AutoPilot_On");
                     return TIME_FOR_MOVE;
                 }
             }
