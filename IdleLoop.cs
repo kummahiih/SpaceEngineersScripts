@@ -68,17 +68,17 @@ namespace IdleLoop
                 {
                     PrintToStateLcd("stopping\n");
                     (timer as IMyTimerBlock)?.ApplyAction("Stop");
-                }, 
-                delay:0.1);
+                },
+                delay: 0.1);
             states.Add(Stop);
 
             Continue = new JumpState("CONTINUE", LCD_NAME, block_measure:
                 lcd =>
                 {
                     var next = GetNextStateName(this);
-                    PrintToStateLcd("continuing to '"+ next + "'\n");
+                    PrintToStateLcd($"continuing to '{next}'\n");
                     return next;
-                }, delay:0.1);
+                }, delay: 0.1);
             states.Add(Continue);
 
             Idle = new ActionState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
@@ -109,7 +109,7 @@ namespace IdleLoop
                     {
                         var found_text =
                             this.GridTerminalSystem.GetBlockWithName(name) == null ? "" : " FOUND";
-                        sb.Append("'" + name + "'" + found_text+"\n");
+                        sb.Append($"'{name}' {found_text}\n");
                     }
                     (lcd as IMyTextPanel)?.WritePublicText(sb.ToString(), append:false);
                 },
@@ -126,7 +126,7 @@ namespace IdleLoop
                     {
                         var found_text =
                             this.GridTerminalSystem.GetBlockGroupWithName(name) == null ? "" : " FOUND";
-                        sb.Append("'" + name + "'" + found_text + "\n");
+                        sb.Append($"'{ name }' {found_text}\n");
                     }
                     (lcd as IMyTextPanel)?.WritePublicText(sb.ToString(), append:false);
                 },
@@ -137,7 +137,7 @@ namespace IdleLoop
                         string.Join(",\n", states.Select(s => s.to_str())) + "\n"),
                 delay:5.0),
             Idle});
-        } 
+        }
         #endregion
 
         #region transition logic
@@ -152,12 +152,12 @@ namespace IdleLoop
 
         public void Main(string eventName)
         {
-            if(string.IsNullOrEmpty(eventName))
+            if (string.IsNullOrEmpty(eventName))
             {
                 PrintToStateLcd("Getting next state\n");
                 eventName = GetNextStateName(this);
             }
-            PrintToStateLcd("Executing '"+ eventName+"'\n");
+            PrintToStateLcd($"Executing '{ eventName }'\n");
             var state = GetState(eventName);
             if (state == null)
             {
@@ -190,12 +190,18 @@ namespace IdleLoop
         public void Execute(NamedState state)
         {
             if (state == null) return;
-            var lcd = GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
-            lcd?.WritePublicText(">" + state.Name + "\n", true);
-            state.Invoke(this, state);
+            PrintToStateLcd($"> {state.Name}\n");
+            try
+            {
+                state.Invoke(this, state);
+            }
+            catch (SomethingWrongException)
+            {
+                PrintToStateLcd($"> something went wrong and exception handlind works now btw.\n");
+            }
             if (state == Stop)
                 return;
-            if( state is JumpState)
+            if (state is JumpState)
             {
                 var next = GetState((state as JumpState).GetTarget());
                 StartTimer(next);
@@ -214,7 +220,7 @@ namespace IdleLoop
             {
                 if (last != null)
                 {
-                    PrintToStateLcd("Registering: '" + state.Name + "' -> '" + last.Name + "'\n");
+                    PrintToStateLcd($"Registering: '{state.Name}' -> '{ last.Name}'\n");
                     state.NextName = last.Name;
                     states.Add(state);
                 }
@@ -230,7 +236,7 @@ namespace IdleLoop
             var lcd = GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
             if (lcd == null) return;
             lcd.WritePublicTitle(text);
-            lcd.WritePublicText("\nsaving next state: '" + text + "'\n", true);
+            lcd.WritePublicText($"\nsaving next state: '{text}'\n", true);
         }
 
         public static string GetNextStateName(MyGridProgram env)
@@ -254,7 +260,7 @@ namespace IdleLoop
         {
             Action<IMyTerminalBlock> action = block =>
             {
-                PrintToStateLcd(" '" + name + "' FOUND:\n" + block.DetailedInfo);
+                PrintToStateLcd($" '{name}' FOUND:\n{block.DetailedInfo}\n");
             };
             return new BlockAction(name, action);
         }
@@ -262,7 +268,7 @@ namespace IdleLoop
         {
             Action<List<IMyTerminalBlock>> action = blocks =>
             {
-                PrintToStateLcd(" '" + name + "' FOUND:\n" + blocks.Count);
+                PrintToStateLcd($" '{name}' FOUND:{blocks.Count}\n");
             };
             return new GroupAction(name, action);
         }
@@ -355,8 +361,8 @@ namespace IdleLoop
         }
 
         public string to_str() =>
-            "'" + Name  +
-            (NextName != null ? (" -> " + "'" + NextName + "'") : "");
+            $"'{Name}'" +
+                (NextName != null ? ($" -> '{ NextName}'") : "");
 
         internal virtual void Invoke(Program program, NamedState state) { }
     }
@@ -368,7 +374,7 @@ namespace IdleLoop
           string name,
           NamedAction action,
           double delay,
-          string next = null):base(name, delay, next)
+          string next = null) : base(name, delay, next)
         {
             NamedAction = action;
         }
@@ -401,8 +407,8 @@ namespace IdleLoop
         public JumpAction JumpAction { get; }
 
         public JumpState(
-            string name, 
-            JumpAction jump_action, 
+            string name,
+            JumpAction jump_action,
             double delay,
             string next = null) : base(name, delay, next)
         {
@@ -431,10 +437,29 @@ namespace IdleLoop
         }
     }
 
+    // No worth of effort to inherit exceptions because they can not be catched
+    public class SomethingWrongException : Exception
+    {
+        public SomethingWrongException() { }
+    }
     #endregion
+
     #region convenience extensions
     public static class Ext
     {
+        public static TBlock CastOrRaise<TBlock>(this IMyTerminalBlock block) where TBlock : class, IMyTerminalBlock
+        {
+            var casted_block = block as TBlock;
+            if (casted_block == null)
+                throw new SomethingWrongException();
+            return casted_block;
+        }
+
+        public static string AsGPS(this VRageMath.Vector3D position, string name)
+            => String.Format(
+                "GPS:{0}:{1:0.00}:{2:0.00}:{3:0.00}:\n",
+                name, position.X, position.Y, position.Z);
+
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
             => action(block);
 
@@ -448,7 +473,7 @@ namespace IdleLoop
 
             action(blocks);
         }
-  
+
         #endregion
         #endregion
     }// Omit this last closing brace as the game will add it back in
