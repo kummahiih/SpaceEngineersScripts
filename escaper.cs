@@ -162,28 +162,24 @@ namespace Escaper
                 new ActionState("check_truster", CheckBlock(ESCAPE_THRUSTER), 1),
                 new ActionState("enable raytrasting", SCANNER_CAMERA,
                     action: camera_block => {
-                        var camera =camera_block as IMyCameraBlock;
-                        if(camera == null) return;
+                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
                         camera.EnableRaycast = true;
                     }, delay:1),
                 new ActionState("thruster_override_off", ESCAPE_THRUSTER,
                     action: block => {
-                        var thrust =block as IMyThrust;
-                        if(thrust == null) return;
+                        var thrust =block.CastOrRaise<IMyThrust>();
                         thrust.ThrustOverridePercentage = 0;
                     }, delay:1),
                 new ActionState("dampeners_on", REMOTE_CONTROL,
                     action: block => {
-                        var rc =block as IMyRemoteControl;
-                        if(rc == null) return;
+                        var rc =block.CastOrRaise<IMyRemoteControl>();
                         rc.DampenersOverride = true;
                     }, delay:1),
                 EscapeChecksDone,
                 new JumpState("SCAN", SCANNER_CAMERA,
                     block_measure: camera_block =>
                     {
-                        var camera = camera_block as IMyCameraBlock;
-                        if (camera == null) return Escape.Name;
+                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
                         while(camera.CanScan(SCAN_RANGE))
                         {
                             var gen = new System.Random();
@@ -195,25 +191,24 @@ namespace Escaper
                                info.Type == MyDetectedEntityType.CharacterHuman )
                             {
                                 PrintToStateLcd("Found!\n");
-                                return null;
+                                return "thruster_override";
                             }                        
                         }
                         PrintToStateLcd("Can not make a scan yet\n");
                         return "SCAN";
                     },
                     delay:1),
+                new JumpState("something wrong", LCD_NAME, _ => Escape.Name, delay:1),
                 new ActionState("thruster_override", ESCAPE_THRUSTER, action: block => {
-                    var thrust =block as IMyThrust;
-                        if(thrust == null) return;
+                    var thrust =block.CastOrRaise<IMyThrust>();
                         thrust.ThrustOverridePercentage = 1;
                 }, delay:1),
                 Escape
             });
         }
-
         #endregion
 
-            #region transition logic
+        #region transition logic
         private List<NamedState> states = new List<NamedState>();
         public Program()
         {
@@ -264,9 +259,15 @@ namespace Escaper
         public void Execute(NamedState state)
         {
             if (state == null) return;
-            var lcd = GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
-            lcd?.WritePublicText(">" + state.Name + "\n", true);
-            state.Invoke(this, state);
+            PrintToStateLcd($"> {state.Name}\n");
+            try
+            {
+                state.Invoke(this, state);
+            }
+            catch(SomethingWrongException e)
+            {
+                PrintToStateLcd($"> something went wrong and exception handlind works now btw.\n");
+            }
             if (state == Stop)
                 return;
             if( state is JumpState)
@@ -343,7 +344,6 @@ namespace Escaper
         #endregion
     }
     #region action and state classes
-
     public abstract class NamedAction
     {
         abstract public string Name { get; }
@@ -505,10 +505,29 @@ namespace Escaper
         }
     }
 
+    // No worth of effort to inherit exceptions because they can not be catched
+    public class SomethingWrongException : Exception
+    {
+        public SomethingWrongException() { }        
+    }
     #endregion
+
     #region convenience extensions
     public static class Ext
     {
+        public static TBlock CastOrRaise<TBlock>(this IMyTerminalBlock block) where TBlock : class, IMyTerminalBlock
+        {
+            var casted_block = block as TBlock;
+            if (casted_block == null)
+                throw new SomethingWrongException();
+            return casted_block;
+        }
+
+        public static string AsGPS(this VRageMath.Vector3D position, string name)
+            => String.Format(
+                "GPS:{0}:{1:0.00}:{2:0.00}:{3:0.00}:\n",
+                name, position.X, position.Y, position.Z);
+
         public static void Apply(this IMyTerminalBlock block, Action<IMyTerminalBlock> action)
             => action(block);
 
