@@ -74,7 +74,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="escaper.cs" />
+    <Compile Include="TimerScripts\escaper.cs" />
     <Compile Include="TimerScripts\TearWellBaseScripts.cs" />
     <Compile Include="TimerScripts\Roller.cs" />
     <Compile Include="TimerScripts\Follower.cs" />

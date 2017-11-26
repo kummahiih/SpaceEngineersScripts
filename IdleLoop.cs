@@ -38,17 +38,7 @@ namespace IdleLoop
 
         // what an opportunity to refactor the code ..
 
-        #region convience actions
-        readonly BlockAction TimeAction = new BlockAction(
-            LCD_NAME, lcd => (lcd as IMyTextPanel)
-            ?.WritePublicText(
-                DateTime.UtcNow.ToLongTimeString() + "\n"));
-
-        readonly BlockAction ClearLCDAction = new BlockAction(
-           LCD_NAME, lcd => (lcd as IMyTextPanel)
-           ?.WritePublicText("", append: false));
-        #endregion
-
+        #region state setups
         #region idle loop, stop, continue
 
         const string TIMER_NAME = "STATE TIMER";
@@ -140,7 +130,6 @@ namespace IdleLoop
         }
         #endregion
 
-        #region transition logic
         private List<NamedState> states = new List<NamedState>();
         public Program()
         {
@@ -150,6 +139,24 @@ namespace IdleLoop
             PrintToStateLcd("Initialized\n");
         }
 
+        void Register(IEnumerable<NamedState> registered_states)
+        {
+            NamedState last = null;
+            foreach (var state in registered_states.Reverse())
+            {
+                if (last != null)
+                {
+                    PrintToStateLcd($"Registering: '{state.Name}' -> '{ last.Name}'\n");
+                    state.NextName = last.Name;
+                    states.Add(state);
+                }
+                last = state;
+            }
+        }
+
+        #endregion
+
+        #region transition logic
         public void Main(string eventName)
         {
             if (string.IsNullOrEmpty(eventName))
@@ -212,22 +219,6 @@ namespace IdleLoop
                 StartTimer(next);
             }
         }
-
-        void Register(IEnumerable<NamedState> registered_states)
-        {
-            NamedState last = null;
-            foreach (var state in registered_states.Reverse())
-            {
-                if (last != null)
-                {
-                    PrintToStateLcd($"Registering: '{state.Name}' -> '{ last.Name}'\n");
-                    state.NextName = last.Name;
-                    states.Add(state);
-                }
-                last = state;
-            }
-        }
-
         #endregion
 
         #region state persistence
@@ -246,15 +237,16 @@ namespace IdleLoop
             return lcd.GetPublicTitle();
         }
         #endregion
-        #region convenience  functions
-        private StringBuilder sb = new StringBuilder();
 
-        void PrintToStateLcd(string text, string lcd_name = LCD_NAME)
-        {
-            var lcd = this.GridTerminalSystem.GetBlockWithName(lcd_name) as IMyTextPanel;
-            lcd?.WritePublicText(text, true);
-            lcd?.ShowPublicTextOnScreen();
-        }
+        #region convience actions
+        readonly BlockAction TimeAction = new BlockAction(
+            LCD_NAME, lcd => (lcd as IMyTextPanel)
+            ?.WritePublicText(
+                DateTime.UtcNow.ToLongTimeString() + "\n"));
+
+        readonly BlockAction ClearLCDAction = new BlockAction(
+           LCD_NAME, lcd => (lcd as IMyTextPanel)
+           ?.WritePublicText("", append: false));
 
         BlockAction CheckBlock(string name)
         {
@@ -264,6 +256,7 @@ namespace IdleLoop
             };
             return new BlockAction(name, action);
         }
+
         GroupAction CheckGroup(string name)
         {
             Action<List<IMyTerminalBlock>> action = blocks =>
@@ -272,10 +265,21 @@ namespace IdleLoop
             };
             return new GroupAction(name, action);
         }
+
+        #endregion
+
+        #region convenience  functions
+        private StringBuilder sb = new StringBuilder();
+
+        void PrintToStateLcd(string text, string lcd_name = LCD_NAME)
+        {
+            var lcd = this.GridTerminalSystem.GetBlockWithName(lcd_name) as IMyTextPanel;
+            lcd?.WritePublicText(text, true);
+            lcd?.ShowPublicTextOnScreen();
+        }
         #endregion
     }
     #region action and state classes
-
     public abstract class NamedAction
     {
         abstract public string Name { get; }
@@ -403,7 +407,6 @@ namespace IdleLoop
     public class JumpState : NamedState
     {
         private string _target = null;
-
         public JumpAction JumpAction { get; }
 
         public JumpState(
@@ -473,7 +476,6 @@ namespace IdleLoop
 
             action(blocks);
         }
-
         #endregion
         #endregion
     }// Omit this last closing brace as the game will add it back in
