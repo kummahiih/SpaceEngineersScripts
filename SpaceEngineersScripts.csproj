@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TimerScripts\escaper.cs" />
+    <Compile Include="TimerScripts\RotorCamera.cs" />
     <Compile Include="TimerScripts\TearWellBaseScripts.cs" />
     <Compile Include="TimerScripts\Roller.cs" />
     <Compile Include="TimerScripts\Follower.cs" />
