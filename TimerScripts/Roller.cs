@@ -221,9 +221,6 @@ namespace Roller
                     PrintToStateLcd("Found a player\n");
                     PrintToStateLcd(info.Position.AsGPS("player"));
 
-                    remote.Orientation.
-
-
                     remote.ClearWaypoints();
                     remote.AddWaypoint(info.Position, "player");
                     remote.FlightMode = FlightMode.Circle;

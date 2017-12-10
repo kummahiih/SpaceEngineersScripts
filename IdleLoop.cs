@@ -364,6 +364,13 @@ namespace IdleLoop
             NextName = next;
         }
 
+        static int stateCount = 0;
+
+        public NamedState(
+           double delay,
+           string next = null) : this($"nameless state {stateCount++}", delay, next)
+        { }
+
         public string to_str() =>
             $"'{Name}'" +
                 (NextName != null ? ($" -> '{ NextName}'") : "");

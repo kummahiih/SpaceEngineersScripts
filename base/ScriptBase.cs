@@ -12,7 +12,9 @@ namespace SOMENAMESPACE
     class Program : MyGridProgram  
     {
         #region copymeto programmable block 
-        //see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ .. somewhere 
+        /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT)
+         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ somewhere
+         */
         public Program()
         {
 

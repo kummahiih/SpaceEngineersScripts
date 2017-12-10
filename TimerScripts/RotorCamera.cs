@@ -134,26 +134,31 @@ namespace RotorCamera
 
         const string ROT_CAMERA_NAME = "rotor raycast camera";
         const string ROT_LCD_NAME = "rotor raycast LCD";
+        const string JUMP_DRIVE_NAME = "jump drive";
         const float SCAN_RANGE = 15000;
 
         NamedState RayCastLoop;
         NamedState Scan;
-
         NamedState ScanDistance;
+        NamedState ScanAndJump;
 
         public void SetupRotorCameras()
         {
+            var check_camera = CheckBlock(ROT_CAMERA_NAME);
+            var check_lcd = CheckBlock(ROT_CAMERA_NAME);
+
+            var enable_raytracing = new BlockAction(ROT_CAMERA_NAME, action: camera_block => {
+                var camera = camera_block.CastOrRaise<IMyCameraBlock>();
+                camera.EnableRaycast = true;
+            });
+
             RayCastLoop = new ActionState("RAYCAST", ClearLCDAction, 1);
             Scan = new ActionState("SCAN", ClearLCDAction, 1);
             Register(new[] {
                 RayCastLoop,
-                new ActionState("check_remote", CheckBlock(ROT_CAMERA_NAME), 1),
-                new ActionState("check_remote", CheckBlock(ROT_LCD_NAME), 1),
-                new ActionState("enable raytrasting", ROT_CAMERA_NAME,
-                    action: camera_block => {
-                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
-                        camera.EnableRaycast = true;
-                    }, delay:1),
+                new ActionState(check_camera, 1),
+                new ActionState(check_lcd, 1),
+                new ActionState(enable_raytracing, 1),
                 Scan,
                 new JumpState("raycast_loop", ROT_CAMERA_NAME,
                     block_measure: camera_block =>
@@ -209,6 +214,38 @@ namespace RotorCamera
                 }, delay:1 ),
 
                 ScanDistance
+            });
+
+            ScanAndJump = new ActionState("SCANJUMP", ClearLCDAction, 1);
+
+            Register(new[] {
+                ScanAndJump,
+                new ActionState(CheckBlock(JUMP_DRIVE_NAME), 1),
+                new ActionState(check_camera, 1),
+                new ActionState(check_lcd, 1),
+                new ActionState(enable_raytracing, 1),
+                 new JumpState("clear_jump", JUMP_DRIVE_NAME, block_measure: jump_block => {
+                    var jd = jump_block.CastOrRaise<IMyJumpDrive>();
+                    var list = new List<ITerminalAction>();
+                     jd.GetActions(list);
+                     foreach(var ac in  list)
+                     {
+                         PrintToStateLcd($"{ac.Name}: {ac.ToString()}\n");
+                     }
+
+                     var plist = new List<ITerminalProperty>();
+                     jd.GetProperties(plist);
+
+                     foreach(var prop in  plist)
+                     {
+                         PrintToStateLcd($"{prop.Id} {prop.TypeName}: {prop.ToString()} \n");
+                     }
+
+                    return null;
+                },delay:1),
+                ScanAndJump,
+
+
             });
 
         }
@@ -449,6 +486,13 @@ namespace RotorCamera
             NextName = next;
         }
 
+        static int stateCount = 0;
+
+        public NamedState(
+           double delay,
+           string next = null):this($"nameless state {stateCount++}", delay, next)
+        { }
+
         public string to_str() =>
             $"'{Name}'" +
                 (NextName != null ? ($" -> '{ NextName}'") : "");
@@ -464,6 +508,14 @@ namespace RotorCamera
           NamedAction action,
           double delay,
           string next = null) : base(name, delay, next)
+        {
+            NamedAction = action;
+        }
+
+        public ActionState(
+          NamedAction action,
+          double delay,
+          string next = null) : base(delay, next)
         {
             NamedAction = action;
         }
