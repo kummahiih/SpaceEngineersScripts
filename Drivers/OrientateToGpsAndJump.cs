@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MinerScript.Drivers
+namespace MinerScript.Drivers.OrientateAndJump
 {
     class Program : MyGridProgram
     {
@@ -19,21 +19,21 @@ namespace MinerScript.Drivers
         const string DEBUG_LCD_NAME = "Text panel pylon 1";
         const string REMOTE_NAME = "REMOTE FOR ORIENTATION";
         const string GYRO_NAME = "GYRO FOR ORIENTATION";
+        const string JUMP_DRIVE_NAME = "Jump Drive";
 
         IMyTextPanel DebugPanel;
         IMyRemoteControl Remote;
         IMyGyro Gyro;
+        IMyJumpDrive JumpDrive;
 
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update10;
-
-
             try
             {
                 DebugPanel = this.GridTerminalSystem.GetBlockWithName(DEBUG_LCD_NAME).CastOrRaise<IMyTextPanel>();
                 Remote = this.GridTerminalSystem.GetBlockWithName(REMOTE_NAME).CastOrRaise<IMyRemoteControl>();
                 Gyro = this.GridTerminalSystem.GetBlockWithName(GYRO_NAME).CastOrRaise<IMyGyro>();
+                JumpDrive = this.GridTerminalSystem.GetBlockWithName(JUMP_DRIVE_NAME).CastOrRaise<IMyJumpDrive>();
             }
             catch (Exception e)
             {
@@ -50,21 +50,13 @@ namespace MinerScript.Drivers
             if (update.HasFlag(UpdateType.Terminal))
             {
                 "Hello there\n".EchoOn(DebugPanel);
-                if (gps != null)
-                {
-                    Storage = argument;
-                    Gyro.GyroOverride = true;
-                }
+                InitializeJump(argument, gps);
                 return;
             }
             if (update.HasFlag(UpdateType.Script))
             {
-                $"Called by script '{argument}'\n".EchoOn(DebugPanel);
-                if (gps != null)
-                {
-                    Storage = argument;
-                    Gyro.GyroOverride = true;
-                }
+                "Called by script\n".EchoOn(DebugPanel);
+                InitializeJump(argument, gps);
                 return;
             }
             if (!update.HasFlag(UpdateType.Update10))
@@ -77,14 +69,16 @@ namespace MinerScript.Drivers
                 return;
 
             var position = Remote.CubeGrid.GetPosition();
+ 
             var target_dir = (gps.Value - position);
             if (target_dir.Length() < 1)
             {
                 "Too close\n".EchoOn(DebugPanel);
+                Runtime.UpdateFrequency = UpdateFrequency.None;
                 return;
             }
             target_dir.Normalize();
-            var forward = Remote.WorldMatrix.Forward; 
+            var forward = Remote.WorldMatrix.Forward;
 
             forward.Normalize();
             var axis = VRageMath.Vector3D.Cross(forward, target_dir);
@@ -94,20 +88,52 @@ namespace MinerScript.Drivers
             var localAxis = VRageMath.Vector3D.Transform(axis, worldToGyro);
 
             double value = Math.Log(angle + 1, 2);
-            if (value < 0.001)
-            {
-                localAxis *= 0;
-                Gyro.GyroOverride = false;
-            }
-            else
+
+            if (value > 0.001)
             {
                 localAxis *= value;
+                localAxis.SetToGyro(Gyro);
+                return;
             }
             
-            Gyro.SetValue("Pitch", (float)localAxis.X);
-            Gyro.SetValue("Yaw", (float)-localAxis.Y);
-            Gyro.SetValue("Roll", (float)-localAxis.Z);
+            localAxis *= 0;
+            localAxis.SetToGyro(Gyro);
+            Gyro.GyroOverride = false;
 
+            var distance = (gps.Value - position).Length();
+
+            if (JumpDrive.Status != MyJumpDriveStatus.Ready)
+                return;
+
+            for (int i = 0; i < 100; i++)
+                JumpDrive.ApplyAction("DecreaseJumpDistance");
+
+            var drives = new List< IMyTerminalBlock > ();
+            this.GridTerminalSystem.GetBlocksOfType<IMyJumpDrive>(drives, d => d.CastOrRaise<IMyJumpDrive>().Status == MyJumpDriveStatus.Ready);
+
+
+            var mass = Remote.CalculateShipMass().TotalMass;
+
+            float max_jump_dist = 2000;
+            float maxJumpMass = 1250000;
+            var maxjumpDist = Math.Min(max_jump_dist * (maxJumpMass / mass), max_jump_dist);
+            var percent = Math.Min(distance / maxjumpDist, 1) * 100;
+
+            $"adjusting jump to {((int)percent).ToString()}%".EchoOn(DebugPanel);
+            for (int i = 0; i < percent; i++)
+                JumpDrive.ApplyAction("IncreaseJumpDistance ");
+
+            Runtime.UpdateFrequency = UpdateFrequency.None;
+        }
+
+        private void InitializeJump(string argument, VRageMath.Vector3D? gps)
+        {
+            if (gps != null)
+            {
+                Storage = argument;
+                Gyro.GyroOverride = true;
+                Runtime.UpdateFrequency = UpdateFrequency.Update10;
+            }
         }
     }
 
@@ -158,6 +184,13 @@ namespace MinerScript.Drivers
             => String.Format(
                 "GPS:{0}:{1:0.00}:{2:0.00}:{3:0.00}:\n",
                 name, position.X, position.Y, position.Z);
+
+        public static void SetToGyro(this VRageMath.Vector3D axis, IMyGyro gyro)
+        {
+            gyro.SetValue("Pitch", (float)axis.X);
+            gyro.SetValue("Yaw", (float)-axis.Y);
+            gyro.SetValue("Roll", (float)-axis.Z);
+        }
 
         public static VRageMath.Vector3D? AsGPS(this string position)
         {

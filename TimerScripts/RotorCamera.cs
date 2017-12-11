@@ -11,35 +11,35 @@ namespace RotorCamera
 {
     class Program : MyGridProgram
     {
-        #region copymeto programmable block
-        /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT)
-         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ somewhere
-         * 
-         * All this his would be easier to do with yield.
-         * 
-         * The state transition timer '<TIMER_NAME>' and the state persistence lcd '<LCD_NAME>'
-         * are are critical for the functionality of the program and they had to be set up 
-         * manually before any diagnostics can be done.
-         * 
-         * Set the '<TIMER_NAME>' timer to run the programmable block with empty argument
-         * and set '<LCD_NAME>' to show public text on the screen.
-         * Run the programmable block with the state name as a parameter. 
-         * For diagnostics run 'IDLE'.
-         * 
-         * 
-         * stop loop (STOP)
-         * 
-         * idle loop (IDLE):   
-         *  time(time)   
-         *  list all used named blocks (blocks)
-         *  list all used named groups (groups)
-         *  list all registered states (ls)   
+        #region copymeto programmable block 
+        /* Copyright 2017 Pauli Rikula (MIT https://opensource.org/licenses/MIT) 
+         * see https://github.com/kummahiih/SpaceEngineersScripts/blob/master/ somewhere 
+         *  
+         * All this his would be easier to do with yield. 
+         *  
+         * The state transition timer '<TIMER_NAME>' and the state persistence lcd '<LCD_NAME>' 
+         * are are critical for the functionality of the program and they had to be set up  
+         * manually before any diagnostics can be done. 
+         *  
+         * Set the '<TIMER_NAME>' timer to run the programmable block with empty argument 
+         * and set '<LCD_NAME>' to show public text on the screen. 
+         * Run the programmable block with the state name as a parameter.  
+         * For diagnostics run 'IDLE'. 
+         *  
+         *  
+         * stop loop (STOP) 
+         *  
+         * idle loop (IDLE):    
+         *  time(time)    
+         *  list all used named blocks (blocks) 
+         *  list all used named groups (groups) 
+         *  list all registered states (ls)    
         */
 
-        // what an opportunity to refactor the code ..
+        // what an opportunity to refactor the code .. 
 
-        #region state setups
-        #region idle loop, stop, continue
+        #region state setups 
+        #region idle loop, stop, continue 
 
         const string TIMER_NAME = "STATE TIMER";
         const string LCD_NAME = "STATE LCD";
@@ -52,7 +52,7 @@ namespace RotorCamera
 
         void SetUpIdleAndStop()
         {
-            //state entry points               
+            //state entry points                
             Stop = new ActionState("STOP", TIMER_NAME,
                 action: timer =>
                 {
@@ -73,7 +73,7 @@ namespace RotorCamera
 
             Idle = new ActionState(IDLE_STATE_NAME, ClearLCDAction, 5.0);
 
-            //idle loop   
+            //idle loop    
             Register(new[] {
             Idle,
                 new ActionState("time", TimeAction, 5.0),
@@ -130,35 +130,51 @@ namespace RotorCamera
         }
         #endregion
 
-        #region rotor cameras
+        #region rotor cameras 
 
         const string ROT_CAMERA_NAME = "rotor raycast camera";
         const string ROT_LCD_NAME = "rotor raycast LCD";
-        const string JUMP_DRIVE_NAME = "jump drive";
-        const float SCAN_RANGE = 15000;
+        const float SCAN_RANGE = 20000;
+
+        const string ORIENTATION_PB_NAME = "Programmable block pylon 1";
 
         NamedState RayCastLoop;
         NamedState Scan;
+
         NamedState ScanDistance;
-        NamedState ScanAndJump;
 
         public void SetupRotorCameras()
         {
-            var check_camera = CheckBlock(ROT_CAMERA_NAME);
-            var check_lcd = CheckBlock(ROT_CAMERA_NAME);
-
-            var enable_raytracing = new BlockAction(ROT_CAMERA_NAME, action: camera_block => {
-                var camera = camera_block.CastOrRaise<IMyCameraBlock>();
-                camera.EnableRaycast = true;
-            });
-
             RayCastLoop = new ActionState("RAYCAST", ClearLCDAction, 1);
             Scan = new ActionState("SCAN", ClearLCDAction, 1);
+            ScanDistance = new ActionState("SCANDIST", ClearLCDAction, 1);
             Register(new[] {
                 RayCastLoop,
-                new ActionState(check_camera, 1),
-                new ActionState(check_lcd, 1),
-                new ActionState(enable_raytracing, 1),
+                new ActionState(CheckBlock(ROT_CAMERA_NAME), 1),
+                new ActionState(CheckBlock(ROT_LCD_NAME), 1),
+                new ActionState(CheckBlock(ORIENTATION_PB_NAME), 1),
+                ScanDistance,
+                new ActionState(new BlockAction(ROT_CAMERA_NAME,
+                    action: camera_block => {
+                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
+                        camera.EnableRaycast = false;
+                    }), delay:1),
+                new ActionState(new BlockAction(ROT_CAMERA_NAME,
+                    action: camera_block => {
+                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
+                        camera.EnableRaycast = true;
+                    }), delay:1),
+
+                new  JumpState("check_scan", ROT_CAMERA_NAME, block_measure: camera_block => {
+                    var camera = camera_block.CastOrRaise<IMyCameraBlock>();
+                    float dist = 1;
+                    while(camera.CanScan(dist)) {dist+=100;}
+                    PrintToStateLcd($"max distance {dist.ToString()}");
+                    if(dist < SCAN_RANGE)
+                       return  "check_scan";
+                    return null;
+                }, delay:1 ),
+
                 Scan,
                 new JumpState("raycast_loop", ROT_CAMERA_NAME,
                     block_measure: camera_block =>
@@ -167,7 +183,7 @@ namespace RotorCamera
                         if (!camera.CanScan(SCAN_RANGE))
                         {
                             PrintToStateLcd("Can not make a scan yet\n");
-                            return "SCAN";
+                            return "check_scan";
                         }
 
                         var info = camera.Raycast(SCAN_RANGE,0,0);
@@ -179,75 +195,23 @@ namespace RotorCamera
                         sb.Clear();
                         sb.Append(DateTime.Now.ToLongDateString());
                         sb.AppendLine();
-                        sb.Append(info.Position.AsGPS("ROT SCAN CENTER"));
-                        sb.Append(info.HitPosition.Value.AsGPS("ROT SCAN"));
+                        sb.Append(info.Position.AsGPS($"{info.Name} CENTER"));
+                        var gps = info.HitPosition.Value.AsGPS(info.Name);
+                        sb.Append(gps);
                         sb.AppendLine();
                         sb.Append(info.Name);
                         sb.AppendLine();
 
                         PrintToStateLcd(sb.ToString(),ROT_LCD_NAME, false);
-                        return "SCAN";
+
+                        var pb = this.GridTerminalSystem.GetBlockWithName(ORIENTATION_PB_NAME).CastOrRaise<IMyProgrammableBlock>();
+
+                        pb.TryRun(gps);
+
+                        return null;
                     }, delay:1),
-                RayCastLoop
+                Stop
             });
-
-            ScanDistance = new ActionState("SCANDIST", ClearLCDAction, 1);
-            Register(new[] {
-                ScanDistance,
-                 new ActionState("reset raytrasting 1", ROT_CAMERA_NAME,
-                    action: camera_block => {
-                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
-                        camera.EnableRaycast = false;
-                    }, delay:1),
-                new ActionState("reset raytrasting 2", ROT_CAMERA_NAME,
-                    action: camera_block => {
-                        var camera = camera_block.CastOrRaise<IMyCameraBlock>();
-                        camera.EnableRaycast = true;
-                    }, delay:1),
-
-                new  JumpState("check_scan", ROT_CAMERA_NAME, block_measure: camera_block => {
-                    var camera = camera_block.CastOrRaise<IMyCameraBlock>();
-                    float dist = 1;
-                    while(camera.CanScan(dist)) {dist+=100;}
-                    PrintToStateLcd($"max distance {dist.ToString()}");
-                    return  "check_scan";
-                }, delay:1 ),
-
-                ScanDistance
-            });
-
-            ScanAndJump = new ActionState("SCANJUMP", ClearLCDAction, 1);
-
-            Register(new[] {
-                ScanAndJump,
-                new ActionState(CheckBlock(JUMP_DRIVE_NAME), 1),
-                new ActionState(check_camera, 1),
-                new ActionState(check_lcd, 1),
-                new ActionState(enable_raytracing, 1),
-                 new JumpState("clear_jump", JUMP_DRIVE_NAME, block_measure: jump_block => {
-                    var jd = jump_block.CastOrRaise<IMyJumpDrive>();
-                    var list = new List<ITerminalAction>();
-                     jd.GetActions(list);
-                     foreach(var ac in  list)
-                     {
-                         PrintToStateLcd($"{ac.Name}: {ac.ToString()}\n");
-                     }
-
-                     var plist = new List<ITerminalProperty>();
-                     jd.GetProperties(plist);
-
-                     foreach(var prop in  plist)
-                     {
-                         PrintToStateLcd($"{prop.Id} {prop.TypeName}: {prop.ToString()} \n");
-                     }
-
-                    return null;
-                },delay:1),
-                ScanAndJump,
-
-
-            });
-
         }
         #endregion
 
@@ -278,7 +242,7 @@ namespace RotorCamera
 
         #endregion
 
-        #region transition logic
+        #region transition logic 
         public void Main(string eventName)
         {
             if (string.IsNullOrEmpty(eventName))
@@ -343,7 +307,7 @@ namespace RotorCamera
         }
         #endregion
 
-        #region state persistence
+        #region state persistence 
         public void SaveNextStateName(string text)
         {
             var lcd = GridTerminalSystem.GetBlockWithName(LCD_NAME) as IMyTextPanel;
@@ -360,7 +324,7 @@ namespace RotorCamera
         }
         #endregion
 
-        #region convience actions
+        #region convience actions 
         readonly BlockAction TimeAction = new BlockAction(
             LCD_NAME, lcd => (lcd as IMyTextPanel)
             ?.WritePublicText(
@@ -374,7 +338,7 @@ namespace RotorCamera
         {
             Action<IMyTerminalBlock> action = block =>
             {
-                PrintToStateLcd($" '{name}' FOUND:\n{block.DetailedInfo}\n");
+                PrintToStateLcd($" '{name}' FOUND:\n{block?.DetailedInfo??""}\n");
             };
             return new BlockAction(name, action);
         }
@@ -390,7 +354,7 @@ namespace RotorCamera
 
         #endregion
 
-        #region convenience  functions
+        #region convenience  functions 
         private StringBuilder sb = new StringBuilder();
 
         void PrintToStateLcd(string text, string lcd_name = LCD_NAME, bool append = true)
@@ -401,7 +365,7 @@ namespace RotorCamera
         }
         #endregion
     }
-    #region action and state classes
+    #region action and state classes 
     public abstract class NamedAction
     {
         abstract public string Name { get; }
@@ -485,12 +449,11 @@ namespace RotorCamera
             Name = name;
             NextName = next;
         }
-
         static int stateCount = 0;
 
         public NamedState(
            double delay,
-           string next = null):this($"nameless state {stateCount++}", delay, next)
+           string next = null) : this($"nameless state {stateCount++}", delay, next)
         { }
 
         public string to_str() =>
@@ -511,11 +474,10 @@ namespace RotorCamera
         {
             NamedAction = action;
         }
-
         public ActionState(
-          NamedAction action,
-          double delay,
-          string next = null) : base(delay, next)
+         NamedAction action,
+         double delay,
+         string next = null) : base(delay, next)
         {
             NamedAction = action;
         }
@@ -577,14 +539,14 @@ namespace RotorCamera
         }
     }
 
-    // No worth of effort to inherit exceptions because they can not be catched
+    // No worth of effort to inherit exceptions because they can not be catched 
     public class SomethingWrongException : Exception
     {
         public SomethingWrongException() { }
     }
     #endregion
 
-    #region convenience extensions
+    #region convenience extensions 
     public static class Ext
     {
         public static TBlock CastOrRaise<TBlock>(this IMyTerminalBlock block) where TBlock : class, IMyTerminalBlock

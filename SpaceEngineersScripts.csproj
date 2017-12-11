@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DriverHello.cs" />
+    <Compile Include="Drivers\OrientateToGpsAndJump.cs" />
     <Compile Include="Drivers\OrientateToGps.cs" />
     <Compile Include="TimerScripts\escaper.cs" />
     <Compile Include="TimerScripts\RotorCamera.cs" />
