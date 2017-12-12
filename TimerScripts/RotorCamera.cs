@@ -193,7 +193,7 @@ namespace RotorCamera
                             return "SCAN";
                         }
                         sb.Clear();
-                        sb.Append(DateTime.Now.ToLongDateString());
+                        sb.Append(DateTime.Now.ToLongTimeString());
                         sb.AppendLine();
                         sb.Append(info.Position.AsGPS($"{info.Name} CENTER"));
                         var gps = info.HitPosition.Value.AsGPS(info.Name);

@@ -78,6 +78,7 @@
     <Compile Include="Drivers\OrientateToGpsAndJump.cs" />
     <Compile Include="Drivers\OrientateToGps.cs" />
     <Compile Include="TimerScripts\escaper.cs" />
+    <Compile Include="TimerScripts\Satellite.cs" />
     <Compile Include="TimerScripts\RotorCamera.cs" />
     <Compile Include="TimerScripts\TearWellBaseScripts.cs" />
     <Compile Include="TimerScripts\Roller.cs" />

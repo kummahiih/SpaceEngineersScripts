@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IdleLoop
+namespace Satellite
 {
     class Program : MyGridProgram
     {
@@ -130,14 +130,51 @@ namespace IdleLoop
         }
         #endregion
 
+        #region satelite stuff
+
+        const string REMOTE_NAME = "REMOTE FOR ORIENTATION";
+        const string THRUSTER_NAME = "THRUSTER FOR MOVING";
+
+        NamedState Orbit;
+
+        private void SetupMotorLoop()
+        {
+            Orbit = new ActionState("ORBIT", ClearLCDAction, 1);
+            Register(new[]
+            {
+                Orbit,
+                 new ActionState(CheckBlock(REMOTE_NAME), 1),
+                 new ActionState(CheckBlock(THRUSTER_NAME), 1),
+                 new ActionState(new BlockAction( REMOTE_NAME, action: remote => {
+                     remote.CastOrRaise<IMyRemoteControl>().DampenersOverride = true;
+                 }), 1),
+                 new ActionState(new BlockAction( THRUSTER_NAME, action: t => {
+                     t.CastOrRaise<IMyThrust>().ThrustOverridePercentage = (float)0.3;
+                 }), 15),
+                 new ActionState(new BlockAction( THRUSTER_NAME, action: t => {
+                     t.CastOrRaise<IMyThrust>().ThrustOverridePercentage = 0;
+                 }), 2),
+                  new ActionState(new BlockAction( REMOTE_NAME, action: remote => {
+                     remote.CastOrRaise<IMyRemoteControl>().DampenersOverride = false;
+                 }), 1),
+                Orbit,
+            });
+
+        }
+        #endregion
+
         private List<NamedState> states = new List<NamedState>();
         public Program()
         {
             PrintToStateLcd("Initializing\n");
             states.Clear();
             SetUpIdleAndStop();
+            SetupMotorLoop();
+
             PrintToStateLcd("Initialized\n");
         }
+
+
 
         void Register(IEnumerable<NamedState> registered_states)
         {
@@ -389,6 +426,7 @@ namespace IdleLoop
         {
             NamedAction = action;
         }
+
         public ActionState(
          NamedAction action,
          double delay,
@@ -431,6 +469,7 @@ namespace IdleLoop
         {
             JumpAction = jump_action;
         }
+
         public JumpState(
             string name,
             string block_name,
